@@ -15,13 +15,13 @@ class Actor(nn.Module):
         self.fc3 = nn.Linear(64, 64).to(device)
         self.action_out = nn.Linear(64, args.action_shape[agent_id]).to(device)
 
-    def forward(self, x, fake_hidden):
+    def forward(self, x, fake_hidden, c):
         x = x.to(device)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         actions = self.max_action * torch.tanh(self.action_out(x))
-        return actions, fake_hidden
+        return actions, fake_hidden, c
         
 class RActor(nn.Module):
     def __init__(self, args, agent_id):
@@ -35,10 +35,6 @@ class RActor(nn.Module):
         self.h2o = nn.Linear(self.hidden_size, output_size).to(device)
     
     def forward(self, x, hidden_state, c):
-        print('actor')
-        print(hidden_state)
-        print(hidden_state.shape)
-        
         x = x.to(device)
         hidden_state = hidden_state.to(device)
         x = F.relu(self.i2i(x))
@@ -85,8 +81,7 @@ class LActor(nn.Module):
         c_t = f_t * c_o + i_t * g_t
         h_t = o_t * torch.tanh(c_t)
 
-        out = torch.tanh(self.oo(h_t)) # do i need activation fn here??
-        # out = self.oo(h_t)
+        out = torch.tanh(self.oo(h_t))
 
         return out, h_t, c_t
 
@@ -105,25 +100,6 @@ class PActor(nn.Module):
         out = torch.tanh(self.output(hidd))
         return out, hidd, cell
 
-class PEActor(nn.Module):
-    def __init__(self, args, agent_id):
-        super(PEActor, self).__init__()
-        self.hidden_size = 64
-        input_size = args.obs_shape[agent_id] + args.action_shape[agent_id]
-        output_size = args.action_shape[agent_id]
-
-        self.lstm = nn.LSTMCell(input_size, self.hidden_size)
-        self.output = nn.Linear(self.hidden_size, output_size)
-
-    def forward(self, x, embed, hidden_state, cell_state):
-        # x = torch.tensor(x, dtype=torch.float32)
-        # embed = torch.tensor(embed, dtype=torch.float32)
-        inp = torch.cat((x, embed), dim=1)
-        # inp = np.concatenate((x, embed))
-        hidd, cell = self.lstm(inp, (hidden_state, cell_state))
-        out = torch.tanh(self.output(hidd))
-        return out, hidd, cell
-
 class Critic(nn.Module):
     def __init__(self, args):
         super(Critic, self).__init__()
@@ -133,7 +109,7 @@ class Critic(nn.Module):
         self.fc3 = nn.Linear(64, 64).to(device)
         self.q_out = nn.Linear(64, 1).to(device)
 
-    def forward(self, state, action, fake_hidden):
+    def forward(self, state, action, fake_hidden, c):
         state = torch.cat(state, dim=1).to(device)
         for i in range(len(action)):
             action[i] /= self.max_action
@@ -143,7 +119,7 @@ class Critic(nn.Module):
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         q_value = self.q_out(x)
-        return q_value, fake_hidden
+        return q_value, fake_hidden, c
 
 class RCritic(nn.Module):
     def __init__(self, args):
@@ -159,45 +135,12 @@ class RCritic(nn.Module):
     def forward(self, state, action, hidden_state, c):
         state = torch.cat(state, dim=1)
         action = torch.cat(action, dim=1)
-        # CHANGE HERE
-        # hidden_state = torch.cat(hidden_state, dim=1).to(device)
         x = torch.cat([state, action], dim=1).to(device)
         x = F.relu(self.i2i(x))
         inp = F.relu(self.i2h(x))
         hidden_state = F.relu(self.h2h(hidden_state))
         hidden_state = torch.sigmoid(inp + hidden_state)
         output = self.h2o(hidden_state)
-        # hidden = hidden_state.reshape(2, 1, -1)
-        # hidden = hidden[0], hidden[1]
-        return output, hidden_state, c
-
-class RECritic(nn.Module):
-    def __init__(self, args):
-        super(RECritic, self).__init__()
-        self.hidden_size = 64
-        # only going to get one of the embeddings because shouldn't have access to interal processes
-        # like embeddings
-        input_size = sum(args.obs_shape) + sum(args.action_shape) + args.action_shape[0]
-        output_size = 1
-        self.i2i = nn.Linear(input_size, self.hidden_size).to(device)
-        self.i2h = nn.Linear(self.hidden_size, self.hidden_size).to(device)
-        self.h2h = nn.Linear(self.hidden_size, self.hidden_size).to(device)
-        self.h2o = nn.Linear(self.hidden_size, output_size)
-    
-    def forward(self, state, action, embed, hidden_state, c):     
-        state = torch.cat(state, dim=1)
-        action = torch.cat(action, dim=1)
-        # CHANGE HERE
-        # hidden_state = torch.cat(hidden_state, dim=1).to(device)
-        x = torch.cat([state, action, embed], dim=1).to(device)
-        
-        x = F.relu(self.i2i(x))
-        inp = F.relu(self.i2h(x))
-        hidden_state = F.relu(self.h2h(hidden_state))
-        hidden_state = torch.sigmoid(inp + hidden_state)
-        output = self.h2o(hidden_state)
-        # hidden = hidden_state.reshape(2, 1, -1)
-        # hidden = hidden[0], hidden[1]
         return output, hidden_state, c
 
 class LCritic(nn.Module):
@@ -227,11 +170,7 @@ class LCritic(nn.Module):
         self.oo = nn.Linear(self.hidden_size, self.output_size).to(device)
 
     def forward(self, state, action, hidden_state, cell_state):
-        # h_o, c_o = hidden_state
         h_o, c_o = hidden_state, cell_state
-        # CHANGE HERE
-        # h_o = torch.cat(h_o, dim=1).to(device)
-        # c_o = torch.cat(c_o, dim=1).to(device)
 
         state = torch.cat(state, dim=1)
         action = torch.cat(action, dim=1)
@@ -245,15 +184,7 @@ class LCritic(nn.Module):
         c_t = f_t * c_o + i_t * g_t
         h_t = o_t * torch.tanh(c_t)
 
-        out = torch.tanh(self.oo(h_t)) # do i need activation fn here??
-        # out = self.oo(h_t)
-
-        # return out, h_t, c_t
-
-        # h_t = h_t.reshape(2, 1, -1)
-        # c_t = c_t.reshape(2, 1, -1)
-        # h_t = h_t[0], h_t[1]
-        # c_t = c_t[0], c_t[1]
+        out = torch.tanh(self.oo(h_t))
 
         return out, h_t, c_t
 
@@ -275,91 +206,3 @@ class PCritic(nn.Module):
         hidd, cell = self.lstm(x, (hidden_state, cell_state))
         out = torch.tanh(self.output(hidd))
         return out, hidd, cell
-
-class Embed(nn.Module):
-    def __init__(self, args):
-        super(Embed, self).__init__()
-        agent_id = 0 # this doesn't really matter
-        self.in_size = args.obs_shape[agent_id]
-        self.hid_size = 64
-        # self.out_size = 1 # args.obs_shape[agent_id]
-        # COYG
-        self.out_size = 3 # args.action_shape[agent_id - 1]
-        # self.out_size = 2
-        
-        self.layer_in = nn.Linear(self.in_size, self.hid_size).to(device)
-        self.layer_mid = nn.Linear(self.hid_size, self.hid_size).to(device)
-        self.layer_dle = nn.Linear(self.hid_size, self.hid_size).to(device)
-        self.layer_out = nn.Linear(self.hid_size, self.out_size).to(device)
-
-    def forward(self, obsv, hidd):
-        x = F.relu(self.layer_in(obsv))
-        x = F.relu(self.layer_mid(x))
-        x = F.relu(self.layer_dle(x))
-        return F.softmax(self.layer_out(x)), hidd
-        # return F.relu(self.layer_out(x)), hidd
-        # embed = torch.zeros((obsv.shape[0], self.out_size))
-        # return embed, torch.zeros((hidd.shape))
-
-class _Embed(nn.Module):
-    def __init__(self, args):
-        super(Embed, self).__init__()
-        agent_id = 0 # this doesn't really matter
-        self.in_size = args.obs_shape[agent_id]
-        self.hid_size = 64
-        # self.out_size = 1 # args.obs_shape[agent_id]
-        # COYG
-        self.out_size = args.action_shape[agent_id - 1]
-
-    def forward(self, obsv, hidd):
-        embed = torch.zeros((obsv.shape[0], self.out_size))
-        return embed, torch.zeros((hidd.shape))
-
-class REmbed(nn.Module):
-    def __init__(self, args):
-        super(REmbed, self).__init__()
-        agent_id = 0 # this doesn't really matter
-        self.in_size = args.obs_shape[agent_id]
-        self.hid_size = 64
-        # self.out_size = args.action_shape[agent_id - 1]
-        self.out_size = 2
-        
-        self.i2i = nn.Linear(self.in_size, self.hid_size).to(device)
-        self.i2h = nn.Linear(self.hid_size, self.hid_size).to(device)
-        self.h2h = nn.Linear(self.hid_size, self.hid_size).to(device)
-        self.h2o = nn.Linear(self.hid_size, self.out_size).to(device)
-
-    def forward(self, obsv, hidd):
-        x = obsv.to(device)
-        hidden_state = hidd.to(device)
-        x = F.relu(self.i2i(x))
-        inp = F.relu(self.i2h(x))
-        hidden_state = F.relu(self.h2h(hidden_state))
-        hidden_state = torch.sigmoid(inp + hidden_state)
-        actions = torch.tanh(self.h2o(hidden_state))
-        return actions, hidden_state
-        # return torch.zeros((obsv.shape[0], self.out_size))
-
-
-# JUST NOT GOING TO TOUCH THIS RIGHT NOW
-"""class ICA_Critic(nn.Module):
-    def __init__(self, args, agent_id):
-        super(ICA_Critic, self).__init__()
-        self.max_action = args.high_action
-        # self.fc1 = nn.Linear(sum(args.obs_shape) + sum(args.action_shape), 64)
-        self.fc1 = nn.Linear(args.obs_shape[agent_id] + args.action_shape[agent_id], 64)
-        self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(64, 64)
-        self.q_out = nn.Linear(64, 1)
-
-    def forward(self, state, action):
-        state = torch.cat(state, dim=1)
-        for i in range(len(action)):
-            action[i] /= self.max_action
-        action = torch.cat(action, dim=1)
-        x = torch.cat([state, action], dim=1)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
-        q_value = self.q_out(x)
-        return q_value"""

@@ -18,9 +18,7 @@ class Buffer:
             self.buffer['o_next_%d' % i] = np.empty([self.size, self.args.obs_shape[i]])
             self.buffer['ha_%d' % i] = np.empty([self.size, self.hidden_size])
             self.buffer['ha_next_%d' % i] = np.empty([self.size, self.hidden_size])
-            # CHANGE HERE
-            # self.buffer['hc_%d' % i] = np.empty([self.size, self.hidden_size // 2])
-            # self.buffer['hc_next_%d' % i] = np.empty([self.size, self.hidden_size // 2])
+
             self.buffer['hc_%d' % i] = np.empty([self.size, self.hidden_size])
             self.buffer['hc_next_%d' % i] = np.empty([self.size, self.hidden_size])
             self.buffer['ca_%d' % i] = np.empty([self.size, self.hidden_size])
@@ -28,20 +26,13 @@ class Buffer:
             self.buffer['cc_%d' % i] = np.empty([self.size, self.hidden_size])
             self.buffer['cc_next_%d' % i] = np.empty([self.size, self.hidden_size])
 
-            # self.buffer['e_%d' % i] = np.empty([self.size, self.args.action_shape[i]])
-            self.buffer['e_%d' % i] = np.empty([self.size, self.args.action_shape[i]])
-            self.buffer['he_%d' % i] = np.empty([self.size, self.hidden_size])
-            self.buffer['he_next_%d' % i] = np.empty([self.size, self.hidden_size])
-            # CHANGE HERE
-            # self.buffer['cc_%d' % i] = np.empty([self.size, self.hidden_size // 2])
-            # self.buffer['cc_next_%d' % i] = np.empty([self.size, self.hidden_size // 2])
             
         # thread lock
         self.lock = threading.Lock()
 
     # store the episode
-    def store_episode(self, o, u, r, o_next, ha, ha_next, hc, hc_next, ca, ca_next, cc, cc_next, e, he, he_next):
-        idxs = self._get_storage_idx(inc=1)  # 以transition的形式存，每次只存一条经验
+    def store_episode(self, o, u, r, o_next, ha, ha_next, hc, hc_next, ca, ca_next, cc, cc_next):
+        idxs = self._get_storage_idx(inc=1)  # only one experience is saved each time
         for i in range(self.args.n_agents):
             with self.lock:
                 self.buffer['o_%d' % i][idxs] = o[i]
@@ -56,11 +47,6 @@ class Buffer:
                 self.buffer['ca_next_%d' % i][idxs] = ca_next[i]
                 self.buffer['cc_%d' % i][idxs] = cc[i]
                 self.buffer['cc_next_%d' % i][idxs] = cc_next[i]
-
-                if self.args.embed != 'none':
-                    self.buffer['e_%d' % i][idxs] = e[i]
-                    self.buffer['he_%d' % i][idxs] = he[i]
-                    self.buffer['he_next_%d' % i][idxs] = he_next[i]
     
     # sample the data from the replay buffer
     def sample(self, batch_size):

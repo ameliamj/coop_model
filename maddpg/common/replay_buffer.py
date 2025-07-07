@@ -26,15 +26,12 @@ class Buffer:
             self.buffer['cc_%d' % i] = np.empty([self.size, self.hidden_size])
             self.buffer['cc_next_%d' % i] = np.empty([self.size, self.hidden_size])
 
-            self.buffer['e_%d' % i] = np.empty([self.size, self.args.embed_shape[i]])
-            self.buffer['he_%d' % i] = np.empty([self.size, self.hidden_size])
-            self.buffer['he_next_%d' % i] = np.empty([self.size, self.hidden_size])
             
         # thread lock
         self.lock = threading.Lock()
 
     # store the episode
-    def store_episode(self, o, u, r, o_next, ha, ha_next, hc, hc_next, ca, ca_next, cc, cc_next, e, he, he_next):
+    def store_episode(self, o, u, r, o_next, ha, ha_next, hc, hc_next, ca, ca_next, cc, cc_next):
         idxs = self._get_storage_idx(inc=1)  # only one experience is saved each time
         for i in range(self.args.n_agents):
             with self.lock:
@@ -50,11 +47,6 @@ class Buffer:
                 self.buffer['ca_next_%d' % i][idxs] = ca_next[i]
                 self.buffer['cc_%d' % i][idxs] = cc[i]
                 self.buffer['cc_next_%d' % i][idxs] = cc_next[i]
-
-                if self.args.embed_input != 'none':
-                    self.buffer['e_%d' % i][idxs] = e[i]
-                    self.buffer['he_%d' % i][idxs] = he[i]
-                    self.buffer['he_next_%d' % i][idxs] = he_next[i]
     
     # sample the data from the replay buffer
     def sample(self, batch_size):

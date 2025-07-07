@@ -33,7 +33,7 @@ def get_args():
     parser.add_argument("--load-weights", type=bool, default=False, help="load old set of weights or not")
     parser.add_argument("--load-name", type=str, default=None, help="weights to load")
     parser.add_argument("--method", type=str, default='maddpg', help="marl method (either maddpg or ica)")
-    parser.add_argument("--threshold", type=int, default=7, help='cooperation threshold!')
+    parser.add_argument("--threshold", type=int, default=4, help='cooperation threshold!')
     parser.add_argument("--refract", type=int, default=3, help="refractory period between pulls") # TODO: EVENTUALLY ASK WILL ABT THIS
     parser.add_argument("--low", type=int, default=2, help="smallest time to wait before lever comes out") # TODO: EVENTUALLY ASK WILL ABT THIS
     parser.add_argument("--high", type=int, default=8, help="largest time to wait before lever comes out") # TODO: EVENTUALLY ASK WILL ABT THIS
@@ -50,22 +50,7 @@ def get_args():
     parser.add_argument("--run-num", type=int, default=99, help="what saved params of the model to load")
     parser.add_argument("--lever-action", type=bool, default=False, help="whether this is an additional lever action or not")
     parser.add_argument("--gaze-punishment", type=float, default=0, help="gaze punishment")
-    parser.add_argument("--small-env", type=bool, default=False, help="small env or not")
-
-    # stuff dealing with embedding
-    parser.add_argument("--embed-input", type=str, default='none',help="whether to use embedding or not (critic, actor, both, none)")
-    parser.add_argument("--embed-model", type=str, default='linear', help="recurrent or linear or baseline")
-    parser.add_argument("--embed-loss", type=str, default='action', help="action, move action, or pos")
-    parser.add_argument("--embed-train", type=str, default='offline', help="offline, online, or none (in which case embedding not trained")
-    parser.add_argument("--load-embed", type=bool, default=False, help="whether to load embedding or not")
-    parser.add_argument("--embed-name", type=str, default=None, help="name of embedding or none")
-
-    # take this out later, just using this to test stuff in maddpg3... LOL
-    parser.add_argument('--embed-test', type=str, default=None, help="name of embedding or none")
-    parser.add_argument('--actor-alpha', type=float, default=1, help="actor alpha value")
-    parser.add_argument('--critic-alpha', type=float, default=1, help="critic alpha value")
-    parser.add_argument('--actor-beta', type=float, default=1, help="actor beta value")
-    parser.add_argument('--critic-beta', type=float, default=1, help="critic beta value")
+    parser.add_argument("--small-env", type=bool, default=True, help="small env or not")
 
     # Evaluate
     parser.add_argument("--evaluate-episodes", type=int, default=1, help="number of episodes for evaluating")

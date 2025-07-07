@@ -53,16 +53,6 @@ def make_env(args):
         args.action_shape = [x + 1 for x in args.action_shape]
         args.num_actions += 1
 
-    if args.embed_loss == 'action':
-        args.embed_shape = [args.action_shape[0], args.action_shape[1]]
-    elif args.embed_loss == 'move action':
-        args.embed_shape = [args.action_shape[0] - 2, args.action_shape[1] - 2]
-    else: # this would be if only predicting position...!
-        args.embed_shape = [1, 1]
-
-    if (args.embed_model == 'baseline' or args.embed_input == 'none') and args.method != 'maddpg3':
-        args.embed_train = 'none'
-    # need to change this to figure out how we are going to factor out all of our arguments...
     args.n_players = 2
     args.n_agents = 2
     args.high_action = 1
