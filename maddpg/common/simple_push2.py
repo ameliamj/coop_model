@@ -51,6 +51,8 @@ simple_push_v3.env(max_cycles=25, continuous_actions=False, dynamic_rescaling=Fa
 """
 
 import numpy as np
+import gymnasium as gym
+
 from gymnasium.utils import EzPickle
 
 from pettingzoo.mpe._mpe_utils.core import Agent, Landmark, World
@@ -66,6 +68,7 @@ class raw_env(SimpleEnv, EzPickle):
         continuous_actions=False,
         render_mode=None,
         dynamic_rescaling=False,
+        lever_action = False
     ):
         EzPickle.__init__(
             self,
@@ -85,6 +88,8 @@ class raw_env(SimpleEnv, EzPickle):
             # dynamic_rescaling=dynamic_rescaling,
         )
         self.metadata["name"] = "simple_push_v3"
+        
+        #self.action_space = [gym.spaces.Discrete(4 if lever_action else 3) for _ in range(2)] #Added
 
 
 env = make_env(raw_env)
@@ -168,12 +173,16 @@ class Scenario(BaseScenario):
 
     def observation(self, agent, world):
         # get positions of all entities in this agent's reference frame
+        print("Observation")
         entity_pos = []
-        for entity in world.landmarks:  # world.entities:
+        print("world.landmarks: ", world.landmarks)
+        for i, entity in enumerate(world.landmarks):  # world.entities:
+            print(f"i: {i},  entity.state.p_pos: {entity.state.p_pos}")
             entity_pos.append(entity.state.p_pos - agent.state.p_pos)
         # entity colors
         entity_color = []
         for entity in world.landmarks:  # world.entities:
+            print("entity.color: ", entity.color)
             entity_color.append(entity.color)
         # communication of all other agents
         comm = []
