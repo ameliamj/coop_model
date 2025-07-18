@@ -115,9 +115,14 @@ class Updater:
         return r, s_next
 
     def coord_update(self, s_next, timestep, real_actions, gaze_actions):
+        
+        print("\nRunning Coord Update")
+        
         r = -1 * np.ones(len(s_next))  # OR np.zeros(len(s)) OR some distant measure from current target??
         l = np.zeros(len(s_next))
         p = np.zeros(len(s_next))
+
+        print("Init s_next: ", s_next)        
 
         for i, state in enumerate(s_next):
             # find the distance to the lever
@@ -179,6 +184,9 @@ class Updater:
             if gaze_actions[i] == 1:
                 r[i] += self.args.gaze_punishment
         self.update_colors()
+        
+        print("End s_next: ", s_next)        
+        
         return r, s_next
 
 
