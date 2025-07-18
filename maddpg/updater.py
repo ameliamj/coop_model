@@ -122,7 +122,8 @@ class Updater:
         l = np.zeros(len(s_next))
         p = np.zeros(len(s_next))
 
-        print("Init s_next: ", s_next)        
+        print("Init s_next: ", s_next)     
+        print("len(s_next): ", len(s_next))
 
         for i, state in enumerate(s_next):
             # find the distance to the lever
@@ -170,7 +171,7 @@ class Updater:
                 self.all_lever_cues.append(timestep)
 
             # update lever/reward cues in state
-            s_next[i] = np.concatenate((state, [self.reward_cues[i]]))
+            s_next[i] = np.concatenate((state, [self.reward_cues[i]])) #OLD_CODE
             if self.args.lever_cue != 'none':
                 s_next[i] = np.concatenate((s_next[i], [self.lever_cues[i]]))
             if self.args.lever_action:
@@ -179,6 +180,7 @@ class Updater:
                 else:
                     self.lever_actions[i] = 0
                 s_next[i] = np.concatenate((s_next[i], [self.lever_actions[i]]))
+                print(f"Agent {i} s_next shape: {s_next[i].shape}")  # Debug print
 
             # negative reward for gaze
             if gaze_actions[i] == 1:
@@ -186,6 +188,7 @@ class Updater:
         self.update_colors()
         
         print("End s_next: ", s_next)        
+        print("len(s_next): ", len(s_next))
         
         return r, s_next
 

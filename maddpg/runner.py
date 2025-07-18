@@ -68,9 +68,10 @@ class Runner:
             actions = {}
             gaze_actions = [0, 0]
             with torch.no_grad():
-                for agent_id, agent in enumerate(self.agents):
+                for agent_id, agent in enumerate(self.agents):              
+                    print(f"Agent {agent_id} observation shape before gaze: {s[agent_id].shape}")
                     s[agent_id] = gazer.gaze(s[agent_id], gaze_actions[agent_id], agent_id)
-
+                    print(f"Agent {agent_id} observation shape after gaze: {s[agent_id].shape}")
                     
                     action, ha_next[agent_id], ca_next[agent_id] = agent.select_action(s[agent_id], ha[agent_id], ca[agent_id], noise_rate=self.noise, epsilon=self.epsilon)
 
