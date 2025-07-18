@@ -48,7 +48,7 @@ def make_env(args):
     if args.lever_action:
         args.obs_shape = [x + 1 for x in args.obs_shape]
     
-    args.num_actions = 3 #Added; Actions: no_action, move_left, move_right
+    #args.num_actions = 3 by default; Actions: no_action, move_left, move_right
         
     args.action_shape = [args.num_actions, args.num_actions]
     args.action_shape = [x + 2 for x in args.action_shape] # this is because we have to gaze / not gaze right now

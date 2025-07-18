@@ -69,9 +69,9 @@ class Updater:
         return r, s_next
 
     def buff_update(self, s_next, timestep, real_actions, gaze_actions):
-        r = -1 * np.ones(len(s_next))  # OR np.zeros(len(s)) OR some distant measure from current target??
-        l = np.zeros(len(s_next))
-        p = np.zeros(len(s_next))
+        r = -1 * np.ones(len(s_next)) #default reward (-1)              # OR np.zeros(len(s)) OR some distant measure from current target??
+        l = np.zeros(len(s_next)) #lever distances
+        p = np.zeros(len(s_next)) #reward distances
 
         for i, state in enumerate(s_next):
             # find the distance to the lever

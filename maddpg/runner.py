@@ -50,6 +50,8 @@ class Runner:
                         s[i] = np.concatenate((state, [0, 0]))
                     else:
                         s[i] = np.concatenate((state, [0]))
+                    if self.args.lever_action: #NEW_CODE
+                        s[i] = np.concatenate((s[i], [0]))  # lever_action #NEW_CODE
                 ha = Updater.init_hidden(hidden_size=64)
                 ha_next = Updater.init_hidden(hidden_size=64)
                 hc = Updater.init_hidden(hidden_size=64)

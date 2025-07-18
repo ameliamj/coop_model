@@ -52,6 +52,7 @@ simple_push_v3.env(max_cycles=25, continuous_actions=False, dynamic_rescaling=Fa
 
 import numpy as np
 import gymnasium as gym
+import pygame
 
 from gymnasium.utils import EzPickle
 
@@ -90,7 +91,72 @@ class raw_env(SimpleEnv, EzPickle):
         self.metadata["name"] = "simple_push_v3"
         
         #self.action_space = [gym.spaces.Discrete(4 if lever_action else 3) for _ in range(2)] #Added
-
+        
+        #Rendering Setup: 
+        '''self.window_size = 700  # Pygame window size
+        self.world_scale = 350  # Scale world coords [-1, 1] to pixels
+        self.rat_sprite = None
+        self.rat_frames = []
+        self.frame_count = 4  # Number of animation frames
+        self.frame_index = 0
+        self.frame_timer = 0
+        self.frame_duration = 100  # Milliseconds per frame
+        self.font = None '''
+    '''  
+    def render(self):
+        if self.render_mode != "human":
+            return
+        if self.screen is None:
+            pygame.init()
+            self.screen = pygame.display.set_mode((self.window_size, self.window_size))
+            # Load rat sprite sheet (assumes 4 frames, 32x32 each, horizontal)
+            try:
+                self.rat_sprite = pygame.image.load("rat_sprite.png").convert_alpha()
+                frame_width = self.rat_sprite.get_width() // self.frame_count
+                for i in range(self.frame_count):
+                    frame = self.rat_sprite.subsurface((i * frame_width, 0, frame_width, frame_width))
+                    frame = pygame.transform.scale(frame, (30, 30))  # Scale to fit
+                    self.rat_frames.append(frame)
+            except FileNotFoundError:
+                print("Error: rat_sprite.png not found in project directory")
+                self.rat_frames = [pygame.Surface((30, 30)) for _ in range(self.frame_count)]  # Fallback
+            # Initialize font
+            self.font = pygame.font.SysFont("arial", 20)  # Use default font
+            # self.font = pygame.font.Font("arial.ttf", 20)  # Uncomment if using custom font
+        # Update animation frame
+        self.frame_timer += 16  # Approx 60 FPS (16ms per frame)
+        if self.frame_timer >= self.frame_duration:
+            self.frame_index = (self.frame_index + 1) % self.frame_count
+            self.frame_timer = 0
+        # Clear screen
+        self.screen.fill((255, 255, 255))  # White background
+        # Draw landmarks
+        for i, landmark in enumerate(self.world.landmarks):
+            # Convert world coords [-1, 1] to screen coords [0, 700]
+            x = int((landmark.state.p_pos[0] + 1) * self.world_scale)
+            y = int((1 - landmark.state.p_pos[1]) * self.world_scale)  # Flip y-axis
+            color = tuple(int(c * 255) for c in landmark.color)  # RGB 0-1 to 0-255
+            # Draw landmark as circle
+            pygame.draw.circle(self.screen, color, (x, y), 15)
+            # Add text: "L" for levers (i=0,1), "R" for reward zones (i=2,3)
+            text = "L" if i < 2 else "R"
+            text_surface = self.font.render(text, True, (0, 0, 0))  # Black text
+            text_rect = text_surface.get_rect(center=(x, y))
+            self.screen.blit(text_surface, text_rect)
+        # Draw agents
+        for agent in self.world.agents:
+            x = int((agent.state.p_pos[0] + 1) * self.world_scale)
+            y = int((1 - agent.state.p_pos[1]) * self.world_scale)
+            # Draw animated rat sprite
+            self.screen.blit(self.rat_frames[self.frame_index], (x - 15, y - 15))  # Center sprite
+        pygame.display.flip()
+        # Handle Pygame events to allow window closing
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                self.screen = None
+                raise SystemExit'''
+    
 
 env = make_env(raw_env)
 parallel_env = parallel_wrapper_fn(env)
