@@ -162,8 +162,9 @@ class Runner:
                             if rand < self.args.obfu:
                                 s[agent_id][8] = 0 
                                 s[agent_id][9] = 0 
+                            print(f"Agent {agent_id} observation shape after obfu: {s[agent_id].shape}")
                                 # print("obfuscated")
-
+                        print(f"Agent {agent_id} observation shape before select_action: {s[agent_id].shape}")
                         action, h[agent_id], c[agent_id] = agent.select_action(s[agent_id], h[agent_id], c[agent_id], 0, 0)
                         actions[agent_names[agent_id]], gaze_actions[agent_id] = Updater.probs_to_actions(action, self.args.lever_action)
                         
@@ -174,11 +175,13 @@ class Runner:
                     print("got_reward")
                 s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
                 r, s_next = updater.update(s_next, time_step, actions, gaze_actions)
+                print(f"Evaluate: s_next shapes after updater.update: {[s.shape for s in s_next]}")
                 if r[0] == 100:
                     print("got_reward")
                 rewards1 += r[0]
                 rewards2 += r[1]
                 s = s_next
+                print(f"Evaluate: s shapes after assignment: {[s[i].shape for i in range(len(s))]}")
             returns1.append(rewards1)
             returns2.append(rewards2)
             if True: # self.args.evaluate:
