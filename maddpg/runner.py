@@ -139,14 +139,23 @@ class Runner:
             s = [s[agent_names[0]], s[agent_names[1]]]
             gaze_actions = [0, 0]
             for i, state in enumerate(s):
+                print(f"EVALUATE: Agent {i} raw observation shape from env: {state.shape}")
                 if self.args.lever_cue != 'none':
-                    s[i] = np.concatenate((state, [0, 0]))
+                    s[i] = np.concatenate((state, [0, 0])) #reward_cue, lever_cue
+                    print(f"EVALUATE: Agent {i} shape after adding reward_cue, lever_cue: {s[i].shape}")
                 else:
-                    s[i] = np.concatenate((state, [0]))
+                    s[i] = np.concatenate((state, [0])) #reward_cue
+                    print(f"EVALUATE: Agent {i} shape after adding reward_cue: {s[i].shape}")
+                
+                if self.args.lever_action: #NEW_CODE
+                    s[i] = np.concatenate((s[i], [0]))  # lever_action
+                    print(f"EVALUATE: Agent {i} shape after adding lever_action: {s[i].shape}")
+                
             h = Updater.init_hidden(64)
             c = Updater.init_hidden(64)
 
             updater = Updater(self.args, self.env)
+            print(f"Evaluate: Agent {0} observation shape after updater: {s[0].shape}")
             rewards1 = 0
             rewards2 = 0
             eps_actions = {0: [], 1: []}
@@ -158,7 +167,6 @@ class Runner:
                     for agent_id, agent in enumerate(self.agents):
                         print(f"EVALUATE: Agent {agent_id} observation shape before gaze: {s[agent_id].shape}")
                         s[agent_id] = gazer.gaze(s[agent_id], gaze_actions[agent_id], agent_id)
-                        print(f"EVALUATE: Agent {agent_id} observation shape after gaze: {s[agent_id].shape}")
                         if self.args.obfu is not None:
                             rand = np.random.uniform()
                             if rand < self.args.obfu:
