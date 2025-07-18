@@ -156,7 +156,9 @@ class Runner:
                 actions = {}
                 with torch.no_grad():
                     for agent_id, agent in enumerate(self.agents):
+                        print(f"EVALUATE: Agent {agent_id} observation shape before gaze: {s[agent_id].shape}")
                         s[agent_id] = gazer.gaze(s[agent_id], gaze_actions[agent_id], agent_id)
+                        print(f"EVALUATE: Agent {agent_id} observation shape after gaze: {s[agent_id].shape}")
                         if self.args.obfu is not None:
                             rand = np.random.uniform()
                             if rand < self.args.obfu:
