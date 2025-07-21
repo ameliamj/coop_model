@@ -90,7 +90,7 @@ class raw_env(SimpleEnv, EzPickle):
         )
         self.metadata["name"] = "simple_push_v3"
         
-        #self.action_space = [gym.spaces.Discrete(4 if lever_action else 3) for _ in range(2)] #Added
+        self.action_space = [gym.spaces.Discrete(4 if lever_action else 3) for _ in range(2)] #NEW_CODE
         
         #Rendering Setup: 
         '''self.window_size = 700  # Pygame window size

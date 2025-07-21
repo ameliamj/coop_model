@@ -186,10 +186,9 @@ class Updater:
                 # Compute normalized time since last pull (0 to 1)
                 if self.pull_times[i] >= 0:
                     time_since_pull = (timestep - self.pull_times[i]) / self.args.threshold
-                    self.lever_actions[i] = max(0, 1 - time_since_pull)  # Decays from 1 to 0
                 else:
-                    self.lever_actions[i] = 0  # No pull yet
-                s_next[i] = np.concatenate((s_next[i], [self.lever_actions[i]]))
+                    time_since_pull = 0  # No pull yet
+                s_next[i] = np.concatenate((s_next[i], [time_since_pull]))
                 #NEW_CODE
                 
 
