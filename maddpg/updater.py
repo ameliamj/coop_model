@@ -116,14 +116,14 @@ class Updater:
 
     def coord_update(self, s_next, timestep, real_actions, gaze_actions):
         
-        print("\nRunning Coord Update")
+        #print("\nRunning Coord Update")
         
         r = -1 * np.ones(len(s_next))  # OR np.zeros(len(s)) OR some distant measure from current target??
         l = np.zeros(len(s_next))
         p = np.zeros(len(s_next))
 
-        print("Init s_next: ", s_next)     
-        print("len(s_next): ", len(s_next))
+        #print("Init s_next: ", s_next)     
+        #print("len(s_next): ", len(s_next))
 
         for i, state in enumerate(s_next):
             # find the distance to the lever
@@ -180,15 +180,26 @@ class Updater:
                 else:
                     self.lever_actions[i] = 0
                 s_next[i] = np.concatenate((s_next[i], [self.lever_actions[i]]))
-                print(f"Agent {i} s_next shape: {s_next[i].shape}")  # Debug print
+                #print(f"Agent {i} s_next shape: {s_next[i].shape}")  # Debug print
+                
+                #NEW_CODE: 
+                # Compute normalized time since last pull (0 to 1)
+                if self.pull_times[i] >= 0:
+                    time_since_pull = (timestep - self.pull_times[i]) / self.args.threshold
+                    self.lever_actions[i] = max(0, 1 - time_since_pull)  # Decays from 1 to 0
+                else:
+                    self.lever_actions[i] = 0  # No pull yet
+                s_next[i] = np.concatenate((s_next[i], [self.lever_actions[i]]))
+                #NEW_CODE
+                
 
             # negative reward for gaze
             if gaze_actions[i] == 1:
                 r[i] += self.args.gaze_punishment
         self.update_colors()
         
-        print("End s_next: ", s_next)        
-        print("len(s_next): ", len(s_next))
+        #print("End s_next: ", s_next)        
+        #print("len(s_next): ", len(s_next))
         
         return r, s_next
 
