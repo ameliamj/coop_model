@@ -148,7 +148,8 @@ class Runner:
                     #print(f"EVALUATE: Agent {i} shape after adding reward_cue: {s[i].shape}")
                 
                 if self.args.lever_action: #NEW_CODE
-                    s[i] = np.concatenate((s[i], [0, 0]))  # lever_actions, time_since_pull #NEW_CODE
+                    s[i] = np.concatenate((s[i], [0]))  # lever_actions
+                    s[i] = np.concatenate((s[i], [0])) #time_since_pull #NEW_CODE
                     #print(f"EVALUATE: Agent {i} shape after adding lever_action: {s[i].shape}")
                 
             h = Updater.init_hidden(64)
