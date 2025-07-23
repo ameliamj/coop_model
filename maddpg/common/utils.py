@@ -42,9 +42,9 @@ def make_env(args):
         raise Exception("can't do lever action without lever cue. because I said so")
 
     if args.lever_cue is not None:
-        args.obs_shape = [14, 14] 
+        args.obs_shape = [7, 7] 
     else: 
-        args.obs_shape = [13, 13]
+        args.obs_shape = [6, 6]
     if args.lever_action:
         args.obs_shape = [x + 2 for x in args.obs_shape]  #NEW_CODE increased observation space by +2 instead of +1
     
