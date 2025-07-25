@@ -77,9 +77,9 @@ class Runner:
                     
                     action, ha_next[agent_id], ca_next[agent_id] = agent.select_action(s[agent_id], ha[agent_id], ca[agent_id], noise_rate=self.noise, epsilon=self.epsilon)
                     print("\nAgent: ", agent_names[agent_id])
-                    print("Action: ", action)
                     u.append(action)
                     actions[agent_names[agent_id]], gaze_actions[agent_id] = Updater.probs_to_actions(action, self.args.lever_action)
+                    print("Action: ", actions[agent_names[agent_id]])
 
                 for agent_id, agent in enumerate(self.agents):
                     temp_val, hc_next[agent_id], cc_next[agent_id] = agent.get_value(s[:self.args.n_agents], u, hc[agent_id], cc[agent_id], agent_id=agent_id)
