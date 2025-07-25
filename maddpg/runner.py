@@ -86,6 +86,11 @@ class Runner:
 
             # Do action
             s_next, r, done, _, info = self.env.step(actions)
+            
+            for agent_name in agent_names: #NEW_CODE
+                agent = self.env.world.agents[agent_names.index(agent_name)]
+                print(f"Post-step velocity for {agent_name}: {agent.state.p_vel}")
+            
             s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
 
             # Update rewards, coord_times, and cues

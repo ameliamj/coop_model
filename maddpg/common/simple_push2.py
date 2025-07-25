@@ -71,6 +71,9 @@ class raw_env(SimpleEnv, EzPickle):
         dynamic_rescaling=False,
         lever_action = False
     ):
+        print("Raw Env Created")
+        
+        
         EzPickle.__init__(
             self,
             max_cycles=max_cycles,
@@ -92,7 +95,7 @@ class raw_env(SimpleEnv, EzPickle):
         
         self.action_space = [gym.spaces.Discrete(4 if lever_action else 3) for _ in range(2)] #NEW_CODE
     
-    def step(self, actions):
+    def step(self, actions): #NEW_CODE
         """Override step to use Scenario.apply_action for velocity updates."""
         print("Custom step called")
         # Process actions for each agent
