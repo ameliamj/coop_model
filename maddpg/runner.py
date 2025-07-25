@@ -90,7 +90,7 @@ class Runner:
             # Access unwrapped environment to get world and agents
             unwrapped_env = self.env.unwrapped #NEW_CODE
             for agent in unwrapped_env.agents: #NEW_CODE
-                print(f"Post-step velocity for {agent.name}: {agent.state.p_vel}")
+                print(f"Post-step velocity for {agent.agent_id}: {agent.state.p_vel}")
             
             s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
 
