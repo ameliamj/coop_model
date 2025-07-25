@@ -250,6 +250,8 @@ class Scenario(BaseScenario):
             obsv = np.concatenate([agent.state.p_pos[0]] + [agent.state.p_vel[0]] + [agent.goal_a.state.p_pos[0] - agent.state.p_pos[0]] + [entity_pos[
                 2][0]] + other_pos)
         
+        print("og obsv: ", obsv)
+        
         return obsv
 
     # using the absolute positions of entities instead of relative position doesn't work! (using relative, agent-centric positions above)
