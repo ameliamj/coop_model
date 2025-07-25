@@ -92,6 +92,33 @@ class raw_env(SimpleEnv, EzPickle):
         
         self.action_space = [gym.spaces.Discrete(4 if lever_action else 3) for _ in range(2)] #NEW_CODE
     
+    def step(self, actions):
+        """Override step to use Scenario.apply_action for velocity updates."""
+        print("Custom step called")
+        # Process actions for each agent
+        for agent_name, action in actions.items():
+            agent = self.agents[agent_name]
+            self.scenario.apply_action(agent, action, self.world)
+        
+        # Update world physics (positions based on velocities)
+        self.world.step()
+        
+        # Update observations, rewards, dones
+        observations = {agent.name: self.scenario.observation(agent, self.world) for agent in self.world.agents}
+        rewards = {agent.name: self.scenario.reward(agent, self.world) for agent in self.world.agents}
+        terminations = {agent.name: False for agent in self.world.agents}
+        truncations = {agent.name: self.step_count >= self.max_cycles for agent in self.world.agents}
+        infos = {agent.name: {} for agent in self.world.agents}
+        
+        # Increment step count
+        self.step_count += 1
+        
+        # Handle episode termination
+        if any(truncations.values()):
+            self.agents = []
+        
+        return observations, rewards, terminations, truncations, infos
+    
 
 env = make_env(raw_env)
 parallel_env = parallel_wrapper_fn(env)
