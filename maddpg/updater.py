@@ -126,7 +126,12 @@ class Updater:
         #print("len(s_next): ", len(s_next))
 
         for i, state in enumerate(s_next):
-            # find the distance to the lever
+            '''# find the distance to the lever #OLD_CODE
+            l[i] = -np.sqrt(np.sum(np.square(s_next[i][4:6])))
+            # find the distance to the reward port
+            p[i] = -np.sqrt(np.sum(np.square(s_next[i][6:8])))'''
+            
+            # find the distance to the lever #NEW_CODE
             l[i] = -np.sqrt(np.sum(np.square(s_next[i][4:6])))
             # find the distance to the reward port
             p[i] = -np.sqrt(np.sum(np.square(s_next[i][6:8])))

@@ -95,7 +95,7 @@ class raw_env(SimpleEnv, EzPickle):
         
         self.action_space = [gym.spaces.Discrete(4 if lever_action else 3) for _ in range(2)] #NEW_CODE
     
-    def step(self, actions): #NEW_CODE
+    '''def step(self, actions): #NEW_CODE
         """Override step to use Scenario.apply_action for velocity updates."""
         print("Custom step called")
         # Process actions for each agent
@@ -120,7 +120,7 @@ class raw_env(SimpleEnv, EzPickle):
         if any(truncations.values()):
             self.agents = []
         
-        return observations, rewards, terminations, truncations, infos
+        return observations, rewards, terminations, truncations, infos'''
     
 
 env = make_env(raw_env)
@@ -216,7 +216,8 @@ class Scenario(BaseScenario):
             print("entity.color: ", entity.color)
             entity_color.append(entity.color)
         # communication of all other agents
-        comm = []
+        
+        '''comm = [] #OLD_CODE
         other_pos = []
         other_goal = []
         for other in world.agents:
@@ -231,8 +232,23 @@ class Scenario(BaseScenario):
                 3]] + other_pos + other_goal)
         else:
             obsv = np.concatenate([agent.state.p_pos] + [agent.state.p_vel] + [agent.goal_a.state.p_pos - agent.state.p_pos] + [entity_pos[
-                2]] + other_pos + other_goal)
+                2]] + other_pos + other_goal)'''
             
+        #NEW_CODE
+        comm = []
+        other_pos = []
+        for other in world.agents:
+            if other is agent:
+                continue
+            comm.append(other.state.c)
+            other_pos.append(other.state.p_pos[0] - agent.state.p_pos[0])
+            # other_goal.append(other.state.p_pos - other.goal_a.state.p_pos)
+        if not agent.adversary:
+            obsv = np.concatenate([agent.state.p_pos[0]] + [agent.state.p_vel[0]] + [agent.goal_a.state.p_pos[0] - agent.state.p_pos[0]] + [entity_pos[
+                3][0]] + other_pos)
+        else:
+            obsv = np.concatenate([agent.state.p_pos[0]] + [agent.state.p_vel[0]] + [agent.goal_a.state.p_pos[0] - agent.state.p_pos[0]] + [entity_pos[
+                2][0]] + other_pos)
         
         return obsv
 

@@ -41,15 +41,21 @@ def make_env(args):
     if not args.lever_cue and args.lever_action:
         raise Exception("can't do lever action without lever cue. because I said so")
 
-    if args.lever_cue is not None:
+    '''if args.lever_cue is not None:
         args.obs_shape = [14, 14] 
     else: 
         args.obs_shape = [13, 13]
     if args.lever_action:
+        args.obs_shape = [x + 2 for x in args.obs_shape]  #NEW_CODE increased observation space by +2 instead of +1'''
+    
+    if args.lever_cue is not None:
+        args.obs_shape = [7, 7] 
+    else: 
+        args.obs_shape = [6, 6]
+    if args.lever_action:
         args.obs_shape = [x + 2 for x in args.obs_shape]  #NEW_CODE increased observation space by +2 instead of +1
     
-    #args.num_actions = 3 by default; Actions: no_action, move_left, move_right
-        
+            
     args.action_shape = [args.num_actions, args.num_actions]
     args.action_shape = [x + 2 for x in args.action_shape] # this is because we have to gaze / not gaze right now
     
