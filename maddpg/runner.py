@@ -85,26 +85,14 @@ class Runner:
                     temp_val, hc_next[agent_id], cc_next[agent_id] = agent.get_value(s[:self.args.n_agents], u, hc[agent_id], cc[agent_id], agent_id=agent_id)
 
             # Do action
-            #s_next, r, done, _, info = self.env.step(actions) #OLD_CODE
-            
-            # Step each agent using AEC API #NEW_CODE
-            s_next = {}
-            r = {}
-            done = {}
-            trunc = {}
-            info = {}
-            for agent_name in agent_names:
-                # Step one agent at a time
-                obs, reward, termination, truncation, inf = self.env.step({agent_name: actions[agent_name]})
-                s_next[agent_name] = obs[agent_name]
-                r[agent_name] = reward[agent_name]
-                done[agent_name] = termination[agent_name]
-                trunc[agent_name] = truncation[agent_name]
-                info[agent_name] = inf[agent_name]
-                # Print velocity from observation
-                velocity = s_next[agent_name][2:4]  # self_vel from observation
-                print(f"Post-step velocity for {agent_name}: {velocity}")
-            
+            print("actions: ", actions)
+            temp_actions = {}
+            for name in agent_names:
+                temp_actions[name] = actions[name] if actions[name] != 3 else 0
+                
+            print("temp_actions: ", temp_actions)
+            s_next, r, done, _, info = self.env.step(temp_actions)
+        
             
             s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
 
