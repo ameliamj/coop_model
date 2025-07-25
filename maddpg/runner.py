@@ -46,6 +46,7 @@ class Runner:
                 s, _ = self.env.reset(seed=seed)
                 s = [s[agent_names[0]], s[agent_names[1]]]
                 for i, state in enumerate(s):
+                    print(f"Original obs shape for agent {i}: {state.shape}")
                     if self.args.lever_cue != 'none':
                         s[i] = np.concatenate((state, [0, 0]))
                     else:
@@ -53,6 +54,7 @@ class Runner:
                     if self.args.lever_action: #NEW_CODE
                         s[i] = np.concatenate((s[i], [0]))  # lever_action #NEW_CODE
                         s[i] = np.concatenate((s[i], [0]))
+                    print(f"Augmented obs shape for agent {i}: {s[i].shape}")
                         
                 ha = Updater.init_hidden(hidden_size=64)
                 ha_next = Updater.init_hidden(hidden_size=64)
