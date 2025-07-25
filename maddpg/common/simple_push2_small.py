@@ -169,16 +169,16 @@ class Scenario(BaseScenario):
 
     def observation(self, agent, world):
         # get positions of all entities in this agent's reference frame
-        print("Observation")
+        #print("Observation")
         entity_pos = []
-        print("world.landmarks: ", world.landmarks)
+        #print("world.landmarks: ", world.landmarks)
         for i, entity in enumerate(world.landmarks):  # world.entities:
-            print(f"i: {i},  entity.state.p_pos: {entity.state.p_pos}")
+            #print(f"i: {i},  entity.state.p_pos: {entity.state.p_pos}")
             entity_pos.append(entity.state.p_pos - agent.state.p_pos)
         # entity colors
         entity_color = []
         for entity in world.landmarks:  # world.entities:
-            print("entity.color: ", entity.color)
+            #print("entity.color: ", entity.color)
             entity_color.append(entity.color)
         # communication of all other agents
         
@@ -206,7 +206,7 @@ class Scenario(BaseScenario):
             if other is agent:
                 continue
             comm.append(other.state.c)
-            other_pos.append(other.state.p_pos[0] - agent.state.p_pos[0])
+            other_pos.append([other.state.p_pos[0] - agent.state.p_pos[0]])
             # other_goal.append(other.state.p_pos - other.goal_a.state.p_pos)
         if not agent.adversary:
             obsv = np.concatenate([agent.state.p_pos[0]] + [agent.state.p_vel[0]] + [agent.goal_a.state.p_pos[0] - agent.state.p_pos[0]] + [entity_pos[
