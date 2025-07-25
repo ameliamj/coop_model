@@ -9,6 +9,7 @@ import pickle
 
 
 if __name__ == '__main__':
+    print("STARTING")
     # get the params
     start = time.time()
     args = get_args()

@@ -76,7 +76,8 @@ class Runner:
                     #print(f"Agent {agent_id} observation shape after gaze: {s[agent_id].shape}")
                     
                     action, ha_next[agent_id], ca_next[agent_id] = agent.select_action(s[agent_id], ha[agent_id], ca[agent_id], noise_rate=self.noise, epsilon=self.epsilon)
-
+                    print("\nAgent: ", agent_names[agent_id])
+                    print("Action: ", action)
                     u.append(action)
                     actions[agent_names[agent_id]], gaze_actions[agent_id] = Updater.probs_to_actions(action, self.args.lever_action)
 
