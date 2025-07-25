@@ -168,15 +168,20 @@ class Scenario(BaseScenario):
 
     def observation(self, agent, world):
         # get positions of all entities in this agent's reference frame
+        print("Observation")
         entity_pos = []
-        for entity in world.landmarks:  # world.entities:
+        print("world.landmarks: ", world.landmarks)
+        for i, entity in enumerate(world.landmarks):  # world.entities:
+            print(f"i: {i},  entity.state.p_pos: {entity.state.p_pos}")
             entity_pos.append(entity.state.p_pos - agent.state.p_pos)
         # entity colors
         entity_color = []
         for entity in world.landmarks:  # world.entities:
+            print("entity.color: ", entity.color)
             entity_color.append(entity.color)
         # communication of all other agents
-        comm = []
+        
+        '''comm = [] #OLD_CODE
         other_pos = []
         other_goal = []
         for other in world.agents:
@@ -191,7 +196,26 @@ class Scenario(BaseScenario):
                 3]] + other_pos + other_goal)
         else:
             obsv = np.concatenate([agent.state.p_pos] + [agent.state.p_vel] + [agent.goal_a.state.p_pos - agent.state.p_pos] + [entity_pos[
-                2]] + other_pos + other_goal)
+                2]] + other_pos + other_goal)'''
+            
+        #NEW_CODE
+        comm = []
+        other_pos = []
+        for other in world.agents:
+            if other is agent:
+                continue
+            comm.append(other.state.c)
+            other_pos.append(other.state.p_pos[0] - agent.state.p_pos[0])
+            # other_goal.append(other.state.p_pos - other.goal_a.state.p_pos)
+        if not agent.adversary:
+            obsv = np.concatenate([agent.state.p_pos[0]] + [agent.state.p_vel[0]] + [agent.goal_a.state.p_pos[0] - agent.state.p_pos[0]] + [entity_pos[
+                3][0]] + other_pos)
+        else:
+            obsv = np.concatenate([agent.state.p_pos[0]] + [agent.state.p_vel[0]] + [agent.goal_a.state.p_pos[0] - agent.state.p_pos[0]] + [entity_pos[
+                2][0]] + other_pos)
+        
+        print("og obsv: ", obsv)
+        
         return obsv
 
     # using the absolute positions of entities instead of relative position doesn't work! (using relative, agent-centric positions above)
