@@ -38,13 +38,14 @@ class Runner:
         agent_names = ['adversary_0', 'agent_0']
         gazer = Gaze(self.args.gaze_type, self.env)
         for time_step in tqdm(range(self.args.time_steps)):
-
+            print("timestep: ", time_step)
             # Reset environment at start of each episode
             if time_step % self.episode_limit == 0:
                 seed = np.random.randint(0, 1000)
                 seeds.append(seed)
                 print("hi")
                 s, _ = self.env.reset(seed=seed)
+                print("s: ", s)
                 s = [s[agent_names[0]], s[agent_names[1]]]
                 for i, state in enumerate(s):
                     print(f"Original obs shape for agent {i}: {state.shape}")

@@ -93,6 +93,7 @@ parallel_env = parallel_wrapper_fn(env)
 
 class Scenario(BaseScenario):
     def make_world(self):
+        print("Make World Small")
         world = World()
         # set any world properties first
         world.dim_c = 2
@@ -117,7 +118,7 @@ class Scenario(BaseScenario):
         return world
 
     def reset_world(self, world, np_random):
-
+        print("Reset World Small")
         # random properties for landmarks
         for i, landmark in enumerate(world.landmarks):
             landmark.color = np.array([0.1, 0.1, 0.1])
