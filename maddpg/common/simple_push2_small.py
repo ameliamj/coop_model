@@ -206,16 +206,25 @@ class Scenario(BaseScenario):
             if other is agent:
                 continue
             comm.append(other.state.c)
-            other_pos.append([other.state.p_pos[0] - agent.state.p_pos[0]])
-            # other_goal.append(other.state.p_pos - other.goal_a.state.p_pos)
+            other_pos.append(np.array([other.state.p_pos[0] - agent.state.p_pos[0]]))  # Ensure 1D array
+            print(f"other_pos for {other.name}: {other_pos[-1]}")
         if not agent.adversary:
-            obsv = np.concatenate([agent.state.p_pos[0]] + [agent.state.p_vel[0]] + [agent.goal_a.state.p_pos[0] - agent.state.p_pos[0]] + [entity_pos[
-                3][0]] + other_pos)
+            obsv = np.concatenate([
+                np.array([agent.state.p_pos[0]]),  # x-position
+                np.array([agent.state.p_vel[0]]),  # x-velocity
+                np.array([agent.goal_a.state.p_pos[0] - agent.state.p_pos[0]]),  # x-lever
+                np.array([entity_pos[3][0]]),  # x-port
+                other_pos[0]  # x-other
+            ])
         else:
-            obsv = np.concatenate([agent.state.p_pos[0]] + [agent.state.p_vel[0]] + [agent.goal_a.state.p_pos[0] - agent.state.p_pos[0]] + [entity_pos[
-                2][0]] + other_pos)
-        
-        print("og obsv: ", obsv)
+            obsv = np.concatenate([
+                np.array([agent.state.p_pos[0]]),  # x-position
+                np.array([agent.state.p_vel[0]]),  # x-velocity
+                np.array([agent.goal_a.state.p_pos[0] - agent.state.p_pos[0]]),  # x-lever
+                np.array([entity_pos[2][0]]),  # x-port
+                other_pos[0]  # x-other
+            ])
+        print(f"Observation for {agent.name}: {obsv} (shape: {obsv.shape})")
         
         return obsv
 
