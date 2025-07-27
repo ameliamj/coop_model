@@ -85,6 +85,34 @@ class raw_env(SimpleEnv, EzPickle):
             # dynamic_rescaling=dynamic_rescaling,
         )
         self.metadata["name"] = "simple_push_v3"
+    
+    def reset(self, seed=None, options=None):
+        print("Custom reset called")
+        super().reset(seed=seed, options=options)
+        observations = {agent.name: self.scenario.observation(agent, self.world) for agent in self.world.agents}
+        print(f"Reset observations: {[obs.shape for obs in observations.values()]}")
+        return observations, {}
+
+    def step(self, actions):
+        print("Custom step called")
+        for agent_name, action in actions.items():
+            agent = self.agents[agent_name]
+            self.scenario.apply_action(agent, action, self.world)
+        self.world.step()
+        # Apply cage limits: clamp x-position to [-0.25, 0.25]
+        for agent in self.world.agents:
+            agent.state.p_pos[0] = np.clip(agent.state.p_pos[0], -0.25, 0.25)
+            print(f"Clamped position for {agent.name}: {agent.state.p_pos}")
+        observations = {agent.name: self.scenario.observation(agent, self.world) for agent in self.world.agents}
+        rewards = {agent.name: self.scenario.reward(agent, self.world) for agent in self.world.agents}
+        terminations = {agent.name: False for agent in self.world.agents}
+        truncations = {agent.name: self.step_count >= self.max_cycles for agent in self.world.agents}
+        infos = {agent.name: {} for agent in self.world.agents}
+        self.step_count += 1
+        print(f"Step observations: {[obs.shape for obs in observations.values()]}")
+        if any(truncations.values()):
+            self.agents = []
+        return observations, rewards, terminations, truncations, infos
 
 
 env = make_env(raw_env)
