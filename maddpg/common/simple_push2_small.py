@@ -229,3 +229,26 @@ class Scenario(BaseScenario):
         return obsv
 
     # using the absolute positions of entities instead of relative position doesn't work! (using relative, agent-centric positions above)
+    
+    
+    def apply_action(self, agent, action, world):
+        print(f"Apply Action Entered for {agent.name}, action: {action}")
+        agent.state.p_vel = np.zeros(world.dim_p)
+        if action == 1:  # Move left
+            agent.state.p_vel[0] = -1.0
+        elif action == 2:  # Move right
+            agent.state.p_vel[0] = 1.0
+        print(f"Velocity for {agent.name}: {agent.state.p_vel}")
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
