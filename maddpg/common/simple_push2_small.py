@@ -99,7 +99,7 @@ class raw_env(SimpleEnv, EzPickle):
         print(f"Reset observations: {[obs.shape for obs in observations.values()]}")
         return observations, {}
 
-    def step(self, action): #NEW_CODE
+    '''def step(self, action): #NEW_CODE
         print(f"Custom step called, action for {self.agent_selection}: {action}")
         if not isinstance(action, (int, np.integer)):
             raise ValueError(f"Expected action as an integer, got {type(action)}: {action}")
@@ -128,7 +128,7 @@ class raw_env(SimpleEnv, EzPickle):
         # Advance to next agent
         self._advance_agent_selection()
         print(f"Step observations: {[obs.shape for obs in observations.values()]}")
-        return observations, rewards, terminations, truncations, infos
+        return observations, rewards, terminations, truncations, infos'''
 
 
 env = make_env(raw_env)
