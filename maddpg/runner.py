@@ -224,7 +224,15 @@ class Runner:
                             self.lever_press_positions[agent_names[agent_id]].append(s[agent_id][0])
                             print(f"Lever press by {agent_names[agent_id]} at x_pos: {s[agent_id][0]}")
                         
-                s_next, r, done, _, info = self.env.step(actions)
+                # Do action
+                print("actions: ", actions)
+                temp_actions = {}
+                for name in agent_names:
+                    temp_actions[name] = actions[name] if actions[name] != 3 else 0
+                    
+                #print("temp_actions: ", temp_actions)
+                s_next, r, done, _, info = self.env.step(temp_actions)
+                
                 if r == 100:
                     print("got_reward")
                 s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
