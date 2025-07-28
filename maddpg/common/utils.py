@@ -35,7 +35,7 @@ def make_env(args):
     else:
         from .simple_push2 import parallel_env
     
-    env = parallel_env(max_cycles=args.max_episode_len, continuous_actions=False, render_mode=args.render_mode)
+    env = parallel_env(max_cycles=args.max_episode_len, continuous_actions=False, render_mode=args.render_mode, reward_fn = args.reward_fn)
     env.reset()
 
     if not args.lever_cue and args.lever_action:

@@ -66,6 +66,7 @@ class raw_env(SimpleEnv, EzPickle):
         continuous_actions=False,
         render_mode=None,
         dynamic_rescaling=False,
+        reward_fn="coord"
     ):
         EzPickle.__init__(
             self,
@@ -73,7 +74,7 @@ class raw_env(SimpleEnv, EzPickle):
             continuous_actions=continuous_actions,
             render_mode=render_mode,
         )
-        scenario = Scenario()
+        scenario = Scenario(reward_fn=reward_fn)
         world = scenario.make_world()
         SimpleEnv.__init__(
             self,
@@ -136,6 +137,9 @@ parallel_env = parallel_wrapper_fn(env)
 
 
 class Scenario(BaseScenario):
+    def __init__(self, reward_fn="coord"):  # NEW: Accept reward_fn
+        self.reward_fn = reward_fn
+    
     def make_world(self):
         print("Make World Small")
         world = World()
