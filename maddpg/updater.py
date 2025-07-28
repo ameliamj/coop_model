@@ -14,6 +14,8 @@ class Updater:
         self.first_pull = -1 - self.args.threshold
         if self.args.reward_fn == 'buff':
             self.waits = np.random.randint(self.args.low, self.args.high, 2)
+        elif self.args.reward_fn == 'instrumental':
+            self.waits = np.random.randint(self.args.low, self.args.high, 2)
         elif self.args.reward_fn == 'coord':
             rand_start = np.random.randint(self.args.low, self.args.high, 1)
             self.waits = [rand_start, rand_start]
