@@ -141,12 +141,15 @@ class Updater:
             # find the distance to the reward port
             p[i] = -np.sqrt(np.sum(np.square(s_next[i][6:8])))'''
             
+            
+            print("x_pos: ", s_next[i][0])
+            
             # find the distance to the lever #NEW_CODE
             l[i] = -s_next[i][2]
-            print("l: ", l)
+            print("l[i]: ", l[i])
             # find the distance to the reward port
             p[i] = -s_next[i][3]
-            print("p: ", p)
+            print("p[i]: ", p[i])
 
             # check for pull
             pull_prod = np.prod(self.pull_times)
