@@ -116,7 +116,7 @@ class Runner:
             for name in agent_names:
                 temp_actions[name] = actions[name] if actions[name] != 3 else 0
                 
-            #print("temp_actions: ", temp_actions)
+            print("temp_actions: ", temp_actions)
             s_next, r, done, _, info = self.env.step(temp_actions)
         
             

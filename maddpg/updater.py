@@ -64,6 +64,10 @@ class Updater:
 
         if self.args.reward_fn == 'buff':
             r, s_next = self.buff_update(s_next, timestep, real_actions, gaze_actions)
+        elif self.args.reward_fn == 'pavlovian':
+            r, s_next = self.pavlovian_update(s_next, timestep, real_actions, gaze_actions)
+        elif self.args.reward_fn == 'instrumental':
+            r, s_next = self.instrumental_update(s_next, timestep, real_actions, gaze_actions)
         else: #  self.args.reward_fn == 'coord'
             r, s_next = self.coord_update(s_next, timestep, real_actions, gaze_actions)
         return r, s_next
