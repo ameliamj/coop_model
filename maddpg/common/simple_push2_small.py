@@ -95,6 +95,7 @@ class raw_env(SimpleEnv, EzPickle):
 
     def step(self, actions):
         print("Custom step called")
+        print("Actions: ", actions)
         for agent_name, action in actions.items():
             agent = self.agents[agent_name]
             self.scenario.apply_action(agent, action, self.world)
