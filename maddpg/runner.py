@@ -23,6 +23,9 @@ class Runner:
         self.save_path = self.args.save_dir + '/' + self.args.scenario_name
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
+            
+        #Graphing:  (NEW_CODE)
+        self.lever_press_positions = {'adversary_0': [], 'agent_0': []}
 
     def _init_agents(self):
         agents = []
@@ -30,7 +33,23 @@ class Runner:
             agent = Agent(i, self.args)
             agents.append(agent)
         return agents
-
+    
+    def plot_lever_press_positions(self):
+        # Create histograms for lever press x-positions
+        plt.figure(figsize=(10, 5))
+        for agent_name in self.lever_press_positions:
+            positions = self.lever_press_positions[agent_name]
+            if positions:
+                plt.hist(positions, bins=20, alpha=0.5, label=agent_name, range=(-0.3, 0.3))
+        plt.title('Distribution of X-Positions at Lever Press')
+        plt.xlabel('X-Position')
+        plt.ylabel('Frequency')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f'lever_press_positions_eval_{self.args.cue}_leveraction_{self.args.lever_action}.png')
+        plt.close()
+        print("Lever Press Positions Plotted")
+    
     def run(self):
         returns1 = []
         returns2 = []
@@ -196,6 +215,11 @@ class Runner:
                         
                         eps_actions[agent_id].append((actions[agent_names[agent_id]], gaze_actions[agent_id]))
                         eps_positions[agent_id].append(s[agent_id][2])
+                        
+                        if actions[agent_names[agent_id]] == 3: #NEW_CODE
+                            self.lever_press_positions[agent_names[agent_id]].append(s[agent_id][0])
+                            print(f"Lever press by {agent_names[agent_id]} at x_pos: {s[agent_id][0]}")
+                        
                 s_next, r, done, _, info = self.env.step(actions)
                 if r == 100:
                     print("got_reward")
@@ -218,6 +242,7 @@ class Runner:
                 save_positions[episode] = eps_positions
                 # could also save first pulls, coop pulls, and lever cues if you wanted too..
         if self.args.evaluate:
+            self.plot_lever_press_positions() #NEW_CODE
             return pulls, rewards, save_actions, save_positions, coops
         else:
             return sum(returns1) / self.args.evaluate_episodes, sum(returns2) / self.args.evaluate_episodes, save_actions[episode][0].count(3), save_actions[episode][1].count(3)

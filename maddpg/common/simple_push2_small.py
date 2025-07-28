@@ -251,7 +251,7 @@ class Scenario(BaseScenario):
                 continue
             comm.append(other.state.c)
             other_pos.append(np.array([other.state.p_pos[0] - agent.state.p_pos[0]]))  # Ensure 1D array
-            print(f"other_pos for {other.name}: {other_pos[-1]}")
+            #print(f"other_pos for {other.name}: {other_pos[-1]}")
         if not agent.adversary:
             obsv = np.concatenate([
                 np.array([agent.state.p_pos[0]]),  # x-position
@@ -268,7 +268,7 @@ class Scenario(BaseScenario):
                 np.array([entity_pos[2][0]]),  # x-port
                 other_pos[0]  # x-other
             ])
-        print(f"Observation for {agent.name}: {obsv} (shape: {obsv.shape})")
+        #print(f"Observation for {agent.name}: {obsv} (shape: {obsv.shape})")
         
         return obsv
 
