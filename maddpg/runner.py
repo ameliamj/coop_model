@@ -35,20 +35,22 @@ class Runner:
         return agents
     
     def plot_lever_press_positions(self):
-        # Create histograms for lever press x-positions
+        # Create a single histogram for combined lever press x-positions
         plt.figure(figsize=(10, 5))
-        for agent_name in self.lever_press_positions:
-            positions = self.lever_press_positions[agent_name]
-            if positions:
-                plt.hist(positions, bins=20, alpha=0.5, label=agent_name, range=(-0.3, 0.3))
-        plt.title('Distribution of X-Positions at Lever Press')
+        # Combine positions from both agents
+        all_positions = (self.lever_press_positions['adversary_0'] + 
+                        self.lever_press_positions['agent_0'])
+        if all_positions:
+            plt.hist(all_positions, bins=20, alpha=0.7, label='Both Agents', 
+                    range=(-0.3, 0.3), color='blue')
+        plt.title('Distribution of X-Positions at Lever Press (Sum of Both Agents)')
         plt.xlabel('X-Position')
-        plt.ylabel('Frequency')
+        plt.ylabel('Total Frequency')
         plt.legend()
         plt.grid(True)
-        plt.savefig(f'lever_press_positions_eval.png')
+        plt.savefig(f'{self.save_path}/lever_press_positions_eval.png')
         plt.close()
-        print("Lever Press Positions Plotted")
+        print("Lever Press Positions Plotted (Combined)")
     
     def run(self):
         returns1 = []
@@ -62,7 +64,6 @@ class Runner:
             if time_step % self.episode_limit == 0:
                 seed = np.random.randint(0, 1000)
                 seeds.append(seed)
-                print("hi")
                 s, _ = self.env.reset(seed=seed)
                 print("s: ", s)
                 s = [s[agent_names[0]], s[agent_names[1]]]
