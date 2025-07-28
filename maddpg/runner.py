@@ -48,6 +48,8 @@ class Runner:
         plt.ylabel('Total Frequency')
         plt.legend()
         plt.grid(True)
+        
+        print("Save Path: ", self.save_path)
         plt.savefig(f'{self.save_path}/lever_press_positions_eval.png')
         plt.close()
         print("Lever Press Positions Plotted (Combined)")
