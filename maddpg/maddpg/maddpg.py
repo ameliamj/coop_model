@@ -63,14 +63,18 @@ class MADDPG:
             os.mkdir(self.args.save_dir)
         # path to save the model
         self.model_path = self.args.save_dir + '/' + self.args.scenario_name
+        #print("MODEL PATH: ", self.model_path)
         if not os.path.exists(self.model_path):
             os.mkdir(self.model_path)
         self.model_path = self.model_path + '/' + 'agent_%d' % agent_id
+        #print("MODEL PATH 2: ", self.model_path)
         if not os.path.exists(self.model_path) and not args.evaluate:
             os.mkdir(self.model_path)
 
         if args.load_weights and args.load_name is not None:
             load_path = self.args.save_dir[:7] + '/' + args.load_name + '/' + 'agent_%d' % agent_id + '/' + str(args.run_num) + '_'
+            #print("load_path: ", load_path)
+            
             self.actor_network.load_state_dict(torch.load(load_path + 'actor_params.pkl', weights_only=True))
             self.critic_network.load_state_dict(torch.load(load_path + 'critic_params.pkl', weights_only=True))
             print('Agent {} successfully loaded actor_network: {}'.format(self.agent_id,

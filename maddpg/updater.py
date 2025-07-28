@@ -157,6 +157,7 @@ class Updater:
 
             # check for cooperation
             if np.sum(self.pull_times) > 0 and np.abs(self.pull_times[0] - self.pull_times[1]) < self.args.threshold:
+                print("Cooperation Satisfied")
                 self.lever_cues = [0, 0]
                 self.reward_cues = [1, 1]
                 self.all_coop.append((self.pull_times[0], self.pull_times[1]))
@@ -165,6 +166,9 @@ class Updater:
 
             # check for reward
             if p[i] > -self.args.buff and self.reward_cues[i] == 1:
+                print("p[i]: ", p[i])
+                print("p: ", p)
+                print("Reward Gotten")
                 r[i] = self.args.reward_value
                 self.reward_cues[i] = 0
                 self.all_rewards[i].append(timestep)
