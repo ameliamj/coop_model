@@ -85,6 +85,12 @@ class raw_env(SimpleEnv, EzPickle):
             # dynamic_rescaling=dynamic_rescaling,
         )
         self.metadata["name"] = "simple_push_v3"
+        
+        #NEW_CODE: 
+        self.agents = [agent.name for agent in world.agents]
+        self.step_count = 0
+        self.actions_buffer = {}  # Store actions for all agents in a cycle
+        #
     
     def reset(self, seed=None, options=None):
         print("Custom reset called")
@@ -93,7 +99,7 @@ class raw_env(SimpleEnv, EzPickle):
         print(f"Reset observations: {[obs.shape for obs in observations.values()]}")
         return observations, {}
 
-    def step(self, action):
+    def step(self, action): #NEW_CODE
         print(f"Custom step called, action for {self.agent_selection}: {action}")
         if not isinstance(action, (int, np.integer)):
             raise ValueError(f"Expected action as an integer, got {type(action)}: {action}")
