@@ -93,26 +93,35 @@ class raw_env(SimpleEnv, EzPickle):
         print(f"Reset observations: {[obs.shape for obs in observations.values()]}")
         return observations, {}
 
-    def step(self, actions):
-        print("Custom step called")
-        print("Actions: ", actions)
-        for agent_name, action in actions.items():
-            agent = self.agents[agent_name]
-            self.scenario.apply_action(agent, action, self.world)
-        self.world.step()
-        # Apply cage limits: clamp x-position to [-0.25, 0.25]
-        for agent in self.world.agents:
-            agent.state.p_pos[0] = np.clip(agent.state.p_pos[0], -0.25, 0.25)
-            print(f"Clamped position for {agent.name}: {agent.state.p_pos}")
+    def step(self, action):
+        print(f"Custom step called, action for {self.agent_selection}: {action}")
+        if not isinstance(action, (int, np.integer)):
+            raise ValueError(f"Expected action as an integer, got {type(action)}: {action}")
+        # Store action for current agent
+        self.actions_buffer[self.agent_selection] = action
+        # Apply action for current agent
+        agent = self.agents_dict[self.agent_selection]
+        self.scenario.apply_action(agent, action, self.world)
+        # Update world only after all agents have acted
+        if self.agent_selection == self.agents[-1]:  # Last agent in cycle
+            self.world.step()
+            # Apply cage limits: clamp x-position to [-0.25, 0.25]
+            for agent in self.world.agents:
+                agent.state.p_pos[0] = np.clip(agent.state.p_pos[0], -0.25, 0.25)
+                print(f"Clamped position for {agent.name}: {agent.state.p_pos}")
+            self.step_count += 1
+            self.actions_buffer = {}  # Clear buffer for next cycle
+        # Generate observations, rewards, etc.
         observations = {agent.name: self.scenario.observation(agent, self.world) for agent in self.world.agents}
         rewards = {agent.name: self.scenario.reward(agent, self.world) for agent in self.world.agents}
         terminations = {agent.name: False for agent in self.world.agents}
         truncations = {agent.name: self.step_count >= self.max_cycles for agent in self.world.agents}
         infos = {agent.name: {} for agent in self.world.agents}
-        self.step_count += 1
-        print(f"Step observations: {[obs.shape for obs in observations.values()]}")
         if any(truncations.values()):
             self.agents = []
+        # Advance to next agent
+        self._advance_agent_selection()
+        print(f"Step observations: {[obs.shape for obs in observations.values()]}")
         return observations, rewards, terminations, truncations, infos
 
 
