@@ -245,6 +245,8 @@ class Runner:
                 
                 if r == 100:
                     print("got_reward")
+                else:
+                    print("no_reward")
                 s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
                 r, s_next = updater.update(s_next, time_step, actions, gaze_actions)
                 #print(f"Evaluate: s_next shapes after updater.update: {[s.shape for s in s_next]}")
