@@ -233,6 +233,14 @@ class Runner:
                 #print("temp_actions: ", temp_actions)
                 s_next, r, done, _, info = self.env.step(temp_actions)
                 
+                # Verify cage limit constraints
+                for agent in self.env.unwrapped.world.agents:
+                    x_pos = agent.state.p_pos[0]
+                    if not (-0.25 <= x_pos <= 0.25):
+                        print(f"Warning: {agent.name} x_pos {x_pos} outside cage limits [-0.25, 0.25]")
+                        agent.state.p_pos[0] = np.clip(agent.state.p_pos[0], -0.25, 0.25)
+                        print(f"Clamped {agent.name} x_pos to {agent.state.p_pos[0]}")
+                
                 if r == 100:
                     print("got_reward")
                 s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
