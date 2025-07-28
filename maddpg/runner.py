@@ -46,7 +46,7 @@ class Runner:
         plt.ylabel('Frequency')
         plt.legend()
         plt.grid(True)
-        plt.savefig(f'lever_press_positions_eval_{self.args.cue}_leveraction_{self.args.lever_action}.png')
+        plt.savefig(f'lever_press_positions_eval.png')
         plt.close()
         print("Lever Press Positions Plotted")
     
@@ -158,6 +158,7 @@ class Runner:
                     np.save(self.save_path + f'/loss/critic_loss{agent_id}', agent.policy.critic_loss)
 
     def evaluate(self):
+        print("/nENTERING EVALUATE: ")
         returns1 = []
         returns2 = []
         pulls = {}
