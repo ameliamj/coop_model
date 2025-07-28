@@ -27,7 +27,7 @@ def get_args():
     parser.add_argument("--save-rate", type=int, default=20000, help="save model once every time this many episodes are completed")
     parser.add_argument("--model-dir", type=str, default="", help="directory in which training state and model are loaded")
     # my additional arguments!!
-    parser.add_argument("--reward-fn", type=str, default="coord", help="can be neg, buff, or coord")
+    parser.add_argument("--reward-fn", type=str, default="coord", help="can be neg, buff, pavlovian, instrumental, or coord")
     parser.add_argument("--buff", type=float, default=0.1, help="reward buffer for the big reward")
     parser.add_argument("--reward-value", type=int, default=100, help="reward value for a success")
     parser.add_argument("--load-weights", type=bool, default=False, help="load old set of weights or not")

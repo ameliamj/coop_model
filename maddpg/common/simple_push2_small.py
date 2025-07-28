@@ -250,8 +250,11 @@ class Scenario(BaseScenario):
             if other is agent:
                 continue
             comm.append(other.state.c)
-            other_pos.append(np.array([other.state.p_pos[0] - agent.state.p_pos[0]]))  # Ensure 1D array
-            #print(f"other_pos for {other.name}: {other_pos[-1]}")
+            if self.reward_fn == "instrumental":
+                other_pos.append(np.array([0.0]))  # Zero out other agent's position
+            else:
+                other_pos.append(np.array([other.state.p_pos[0] - agent.state.p_pos[0]]))  # Normal relative position
+
         if not agent.adversary:
             obsv = np.concatenate([
                 np.array([agent.state.p_pos[0]]),  # x-position

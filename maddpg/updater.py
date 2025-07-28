@@ -17,6 +17,7 @@ class Updater:
         elif self.args.reward_fn == 'coord':
             rand_start = np.random.randint(self.args.low, self.args.high, 1)
             self.waits = [rand_start, rand_start]
+            print("self.waits: ", self.waits)
         self.all_pulls = {0: [], 1: []} 
         self.all_rewards = {0: [], 1: []}
         self.all_coop = []
@@ -45,7 +46,7 @@ class Updater:
                     landmark.color = np.array([0.1, 0.1, 0.1])
                     landmark.color[i - 1] += 0.9
 
-    def check_lever_pull(self, i, l, timestep, real_actions):
+    def check_lever_pull(self, i, l, timestep, real_actions): #If Lever Cue, then it checks whether there has been a lever action and the levers are active and agent is close enough to lever and enough time has passed since last pull and agent is not exactly at lever's postiion
         lever_action = (self.args.lever_action == False) or (self.args.lever_action == True and real_actions[i] == 3)
         if self.args.lever_cue == 'none':
             return lever_action and l[i] > -self.args.buff and l[i] != 0 and (
@@ -53,6 +54,7 @@ class Updater:
         else:
             return lever_action and l[i] > -self.args.buff and l[i] != 0 and (
                     timestep - self.pull_times[i]) > self.args.refract and self.lever_cues[i] == 1
+
 
     def update(self, s_next, timestep, actions, gaze_actions):
         # lever cue can be normal, none, or back in
@@ -76,7 +78,58 @@ class Updater:
         a = 1
 
     def instrumental_update(self, s_next, timestep, real_actions, gaze_actions):
-        a = 1        
+        r = -1 * np.ones(len(s_next)) #default reward (-1)              # OR np.zeros(len(s)) OR some distant measure from current target??
+        l = np.zeros(len(s_next)) #lever distances
+        p = np.zeros(len(s_next)) #reward distances
+
+        for i, state in enumerate(s_next):
+            # find the distance to the lever
+            l[i] = -s_next[i][2]
+            # find the distance to the reward port
+            p[i] = -s_next[i][3]
+
+            # check for lever pull
+            if self.check_lever_pull(i, l, timestep, real_actions):
+                self.lever_cues[i] = 0
+                self.reward_cues[i] = 1
+                self.pull_times[i] = timestep
+                self.all_pulls[i].append(timestep)
+
+            # check for reward
+            if p[i] > -self.args.buff and self.reward_cues[i] == 1:
+                r[i] = self.args.reward_value
+                self.reward_cues[i] = 0
+                self.waits[i] = timestep + np.random.randint(self.args.low, self.args.high, 1)
+                self.all_rewards[i].append(timestep)
+
+            # check for lever reset 
+            if timestep == self.waits[i]:
+                self.lever_cues[i] = 1
+
+            # update lever/reward cues in state
+            s_next[i] = np.concatenate((state, [self.reward_cues[i]]))
+            if self.args.lever_cue != 'none':
+                s_next[i] = np.concatenate((s_next[i], [self.lever_cues[i]]))
+            if self.args.lever_action:
+                if (timestep - self.pull_times[i]) < self.args.threshold:
+                    self.lever_actions[i] = 1
+                else:
+                    self.lever_actions[i] = 0
+                s_next[i] = np.concatenate((s_next[i], [self.lever_actions[i]]))
+                
+                # Compute normalized time since last pull (0 to 1)
+                if self.pull_times[i] >= 0:
+                    time_since_pull = (timestep - self.pull_times[i]) / self.args.threshold
+                else:
+                    time_since_pull = 0  # No pull yet
+                s_next[i] = np.concatenate((s_next[i], [time_since_pull]))
+
+            # negative reward for gaze
+            if gaze_actions[i] == 1:
+                r[i] += self.args.gaze_punishment
+        self.update_colors()
+        return r, s_next
+    
 
     def buff_update(self, s_next, timestep, real_actions, gaze_actions):
         r = -1 * np.ones(len(s_next)) #default reward (-1)              # OR np.zeros(len(s)) OR some distant measure from current target??
@@ -188,7 +241,9 @@ class Updater:
             if np.sum(self.lever_cues) == 0 and np.sum(self.reward_cues) == 0 and np.mean(self.waits) < timestep:
                 new_wait = timestep + np.random.randint(self.args.low, self.args.high, 1)
                 self.waits = [new_wait, new_wait]
-            if np.mean(self.waits) == timestep and np.sum(self.reward_cues) == 0:
+            
+            print("waitTime: ", np.mean(self.waits))
+            if int(np.mean(self.waits)) == timestep and np.sum(self.reward_cues) == 0:
                 self.lever_cues = [1, 1]
                 self.all_lever_cues.append(timestep)
 
