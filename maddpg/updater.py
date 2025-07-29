@@ -201,10 +201,10 @@ class Updater:
             #print("x_pos: ", s_next[i][0])
             
             # find the distance to the lever #NEW_CODE
-            l[i] = -s_next[i][2]
+            l[i] = -abs(s_next[i][2])
             print("l[i]: ", l[i])
             # find the distance to the reward port
-            p[i] = -s_next[i][3]
+            p[i] = -abs(s_next[i][3])
             print("p[i]: ", p[i])
             print("-self.args.buff: ", -self.args.buff)
 
