@@ -1,7 +1,7 @@
 import torch
 from torch.nn import functional as F
 import numpy as np
-
+import time
 
 class Updater:
     def __init__(self, args, env):
@@ -61,7 +61,7 @@ class Updater:
     def update(self, s_next, timestep, actions, gaze_actions):
         # lever cue can be normal, none, or back in
         # reward function can be buff or coord
-
+        print("UPDATE")
         real_actions = []
         for agent in actions:
             real_actions.append(actions[agent])
@@ -73,6 +73,7 @@ class Updater:
         elif self.args.reward_fn == 'instrumental':
             r, s_next = self.instrumental_update(s_next, timestep, real_actions, gaze_actions)
         else: #  self.args.reward_fn == 'coord'
+            print("COORD UPDATE")
             r, s_next = self.coord_update(s_next, timestep, real_actions, gaze_actions)
         return r, s_next
     
@@ -205,6 +206,7 @@ class Updater:
             # find the distance to the reward port
             p[i] = -s_next[i][3]
             print("p[i]: ", p[i])
+            print("-self.args.buff: ", -self.args.buff)
 
             # check for pull
             pull_prod = np.prod(self.pull_times)
