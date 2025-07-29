@@ -246,7 +246,7 @@ class Updater:
                 new_wait = timestep + np.random.randint(self.args.low, self.args.high, 1)
                 self.waits = [new_wait, new_wait]
             
-            print("waitTime: ", np.mean(self.waits))
+            #print("waitTime: ", np.mean(self.waits))
             if int(np.mean(self.waits)) == timestep and np.sum(self.reward_cues) == 0:
                 self.lever_cues = [1, 1]
                 self.all_lever_cues.append(timestep)
