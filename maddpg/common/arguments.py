@@ -33,7 +33,7 @@ def get_args():
     parser.add_argument("--load-weights", type=bool, default=False, help="load old set of weights or not")
     parser.add_argument("--load-name", type=str, default=None, help="weights to load")
     parser.add_argument("--method", type=str, default='maddpg', help="marl method (either maddpg or ica)")
-    parser.add_argument("--threshold", type=int, default=5, help='cooperation threshold!') #NEW_CODE: Increasesd threshold from 4 to 6
+    parser.add_argument("--threshold", type=int, default=4, help='cooperation threshold!') 
     parser.add_argument("--refract", type=int, default=3, help="refractory period between pulls") # TODO: EVENTUALLY ASK WILL ABT THIS
     parser.add_argument("--low", type=int, default=2, help="smallest time to wait before lever comes out") # TODO: EVENTUALLY ASK WILL ABT THIS
     parser.add_argument("--high", type=int, default=8, help="largest time to wait before lever comes out") # TODO: EVENTUALLY ASK WILL ABT THIS
