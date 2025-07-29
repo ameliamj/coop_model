@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from updater import Updater
 from gaze import Gaze
 from torch.nn import functional as F
-
+import time
 
 
 class Runner:
@@ -61,16 +61,16 @@ class Runner:
         agent_names = ['adversary_0', 'agent_0']
         gazer = Gaze(self.args.gaze_type, self.env)
         for time_step in tqdm(range(self.args.time_steps)):
-            print("timestep: ", time_step)
+            #print("timestep: ", time_step)
             # Reset environment at start of each episode
             if time_step % self.episode_limit == 0:
                 seed = np.random.randint(0, 1000)
                 seeds.append(seed)
                 s, _ = self.env.reset(seed=seed)
-                print("s: ", s)
+                #print("s: ", s)
                 s = [s[agent_names[0]], s[agent_names[1]]]
                 for i, state in enumerate(s):
-                    print(f"Original obs shape for agent {i}: {state.shape}")
+                    #print(f"Original obs shape for agent {i}: {state.shape}")
                     if self.args.lever_cue != 'none':
                         s[i] = np.concatenate((state, [0, 0]))
                     else:
@@ -78,7 +78,7 @@ class Runner:
                     if self.args.lever_action: #NEW_CODE
                         s[i] = np.concatenate((s[i], [0]))  # lever_action #NEW_CODE
                         s[i] = np.concatenate((s[i], [0]))
-                    print(f"Augmented obs shape for agent {i}: {s[i].shape}")
+                    #print(f"Augmented obs shape for agent {i}: {s[i].shape}")
                         
                 ha = Updater.init_hidden(hidden_size=64)
                 ha_next = Updater.init_hidden(hidden_size=64)
@@ -111,7 +111,7 @@ class Runner:
                     temp_val, hc_next[agent_id], cc_next[agent_id] = agent.get_value(s[:self.args.n_agents], u, hc[agent_id], cc[agent_id], agent_id=agent_id)
 
             # Do action
-            print("actions: ", actions)
+            #print("actions: ", actions)
             temp_actions = {}
             for name in agent_names:
                 temp_actions[name] = actions[name] if actions[name] != 3 else 0
@@ -120,14 +120,14 @@ class Runner:
             s_next, r, done, _, info = self.env.step(temp_actions)
             
             # Verify cage limit constraints
-            print("Runner: ")
+            #print("Runner: ")
             for agent in self.env.unwrapped.world.agents:
                 x_pos = agent.state.p_pos[0]
-                print("x_pos: ", x_pos)
-                if not (-0.25 <= x_pos <= 0.25):
-                    print(f"Warning: {agent.name} x_pos {x_pos} outside cage limits [-0.25, 0.25]")
-                    agent.state.p_pos[0] = np.clip(agent.state.p_pos[0], -0.25, 0.25)
-                    print(f"Clamped {agent.name} x_pos to {agent.state.p_pos[0]}")
+                #print("x_pos: ", x_pos)
+                if not (-0.3 <= x_pos <= 0.3):
+                    #print(f"Warning: {agent.name} x_pos {x_pos} outside cage limits [-0.25, 0.25]")
+                    agent.state.p_pos[0] = np.clip(agent.state.p_pos[0], -0.3, 0.3)
+                    #print(f"Clamped {agent.name} x_pos to {agent.state.p_pos[0]}")
         
             
             s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
@@ -210,6 +210,7 @@ class Runner:
             eps_actions = {0: [], 1: []}
             eps_positions = {0: [], 1: []}
             for time_step in range(self.args.evaluate_episode_len):
+                time.sleep(0.5)
                 self.env.render()
                 actions = {}
                 with torch.no_grad():

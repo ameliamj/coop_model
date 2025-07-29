@@ -201,10 +201,10 @@ class Updater:
             
             # find the distance to the lever #NEW_CODE
             l[i] = -s_next[i][2]
-            #print("l[i]: ", l[i])
+            print("l[i]: ", l[i])
             # find the distance to the reward port
             p[i] = -s_next[i][3]
-            #print("p[i]: ", p[i])
+            print("p[i]: ", p[i])
 
             # check for pull
             pull_prod = np.prod(self.pull_times)
