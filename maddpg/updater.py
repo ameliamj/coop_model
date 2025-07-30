@@ -61,7 +61,7 @@ class Updater:
     def update(self, s_next, timestep, actions, gaze_actions):
         # lever cue can be normal, none, or back in
         # reward function can be buff or coord
-        print("UPDATE")
+        #print("UPDATE")
         real_actions = []
         for agent in actions:
             real_actions.append(actions[agent])
@@ -73,7 +73,6 @@ class Updater:
         elif self.args.reward_fn == 'instrumental':
             r, s_next = self.instrumental_update(s_next, timestep, real_actions, gaze_actions)
         else: #  self.args.reward_fn == 'coord'
-            print("COORD UPDATE")
             r, s_next = self.coord_update(s_next, timestep, real_actions, gaze_actions)
         return r, s_next
     
