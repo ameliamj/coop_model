@@ -202,11 +202,11 @@ class Updater:
             
             # find the distance to the lever #NEW_CODE
             l[i] = -abs(s_next[i][2])
-            print("l[i]: ", l[i])
+            #print("l[i]: ", l[i])
             # find the distance to the reward port
             p[i] = -abs(s_next[i][3])
-            print("p[i]: ", p[i])
-            print("-self.args.buff: ", -self.args.buff)
+            #print("p[i]: ", p[i])
+            #print("-self.args.buff: ", -self.args.buff)
 
             # check for pull
             pull_prod = np.prod(self.pull_times)
@@ -219,7 +219,7 @@ class Updater:
 
             # check for cooperation
             if np.sum(self.pull_times) > 0 and np.abs(self.pull_times[0] - self.pull_times[1]) < self.args.threshold:
-                print("Cooperation Satisfied")
+                print("Successful Cooperation")
                 self.lever_cues = [0, 0]
                 self.reward_cues = [1, 1]
                 self.all_coop.append((self.pull_times[0], self.pull_times[1]))

@@ -171,7 +171,7 @@ class Runner:
                     np.save(self.save_path + f'/loss/critic_loss{agent_id}', agent.policy.critic_loss)
 
     def evaluate(self):
-        print("/nENTERING EVALUATE: ")
+        #print("/nENTERING EVALUATE: ")
         returns1 = []
         returns2 = []
         pulls = {}
@@ -210,7 +210,7 @@ class Runner:
             eps_actions = {0: [], 1: []}
             eps_positions = {0: [], 1: []}
             for time_step in range(self.args.evaluate_episode_len):
-                time.sleep(0.5)
+                #time.sleep(0.5)
                 self.env.render()
                 actions = {}
                 with torch.no_grad():
@@ -233,10 +233,10 @@ class Runner:
                         
                         if actions[agent_names[agent_id]] == 3: #NEW_CODE
                             self.lever_press_positions[agent_names[agent_id]].append(s[agent_id][0])
-                            print(f"Lever press by {agent_names[agent_id]} at x_pos: {s[agent_id][0]}")
+                            #print(f"Lever press by {agent_names[agent_id]} at x_pos: {s[agent_id][0]}")
                         
                 # Do action
-                print("actions: ", actions)
+                #print("actions: ", actions)
                 temp_actions = {}
                 for name in agent_names:
                     temp_actions[name] = actions[name] if actions[name] != 3 else 0
@@ -245,14 +245,14 @@ class Runner:
                 s_next, r, done, _, info = self.env.step(temp_actions)
                 
                 # Verify cage limit constraints
-                print("Runner: ")
+                #print("Runner: ")
                 for agent in self.env.unwrapped.world.agents:
                     x_pos = agent.state.p_pos[0]
-                    print("x_pos: ", x_pos)
-                    if not (-0.25 <= x_pos <= 0.25):
-                        print(f"Warning: {agent.name} x_pos {x_pos} outside cage limits [-0.25, 0.25]")
-                        agent.state.p_pos[0] = np.clip(agent.state.p_pos[0], -0.25, 0.25)
-                        print(f"Clamped {agent.name} x_pos to {agent.state.p_pos[0]}")
+                    #print("x_pos: ", x_pos)
+                    if not (-0.3 <= x_pos <= 0.3):
+                        #print(f"Warning: {agent.name} x_pos {x_pos} outside cage limits [-0.25, 0.25]")
+                        agent.state.p_pos[0] = np.clip(agent.state.p_pos[0], -0.3, 0.3)
+                        #print(f"Clamped {agent.name} x_pos to {agent.state.p_pos[0]}")
                 
                 if r == 100:
                     print("got_reward")
