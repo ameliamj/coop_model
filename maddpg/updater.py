@@ -87,9 +87,9 @@ class Updater:
 
         for i, state in enumerate(s_next):
             # find the distance to the lever
-            l[i] = -s_next[i][2]
+            l[i] = -abs(s_next[i][2])
             # find the distance to the reward port
-            p[i] = -s_next[i][3]
+            p[i] = -abs(s_next[i][3])
 
             # check for lever pull
             if self.check_lever_pull(i, l, timestep, real_actions):
