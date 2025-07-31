@@ -92,6 +92,7 @@ class Updater:
 
             # check for lever pull
             if self.check_lever_pull(i, l, timestep, real_actions):
+                print(f"Lever {i} Pressed")
                 self.lever_cues[i] = 0
                 self.reward_cues[i] = 1
                 self.pull_times[i] = timestep
