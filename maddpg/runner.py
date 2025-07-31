@@ -111,7 +111,7 @@ class Runner:
                     temp_val, hc_next[agent_id], cc_next[agent_id] = agent.get_value(s[:self.args.n_agents], u, hc[agent_id], cc[agent_id], agent_id=agent_id)
 
             # Do action
-            print("actions: ", actions)
+            #print("actions: ", actions)
             temp_actions = {}
             for name in agent_names:
                 temp_actions[name] = actions[name] if actions[name] != 3 else 0
@@ -236,7 +236,7 @@ class Runner:
                             #print(f"Lever press by {agent_names[agent_id]} at x_pos: {s[agent_id][0]}")
                         
                 # Do action
-                #print("actions: ", actions)
+                print("actions: ", actions)
                 temp_actions = {}
                 for name in agent_names:
                     temp_actions[name] = actions[name] if actions[name] != 3 else 0
