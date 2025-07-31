@@ -99,6 +99,7 @@ class Updater:
 
             # check for reward
             if p[i] > -self.args.buff and self.reward_cues[i] == 1:
+                print("Reward Gotten")
                 r[i] = self.args.reward_value
                 self.reward_cues[i] = 0
                 self.waits[i] = timestep + np.random.randint(self.args.low, self.args.high, 1)

@@ -111,7 +111,7 @@ class Runner:
                     temp_val, hc_next[agent_id], cc_next[agent_id] = agent.get_value(s[:self.args.n_agents], u, hc[agent_id], cc[agent_id], agent_id=agent_id)
 
             # Do action
-            #print("actions: ", actions)
+            print("actions: ", actions)
             temp_actions = {}
             for name in agent_names:
                 temp_actions[name] = actions[name] if actions[name] != 3 else 0
@@ -254,15 +254,15 @@ class Runner:
                         agent.state.p_pos[0] = np.clip(agent.state.p_pos[0], -0.3, 0.3)
                         #print(f"Clamped {agent.name} x_pos to {agent.state.p_pos[0]}")
                 
-                if r == 100:
-                    print("got_reward")
-                else:
-                    print("no_reward")
+                #if r == 100:
+                    #print("got_reward")
+                #else:
+                    #print("no_reward")
                 s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
                 r, s_next = updater.update(s_next, time_step, actions, gaze_actions)
                 #print(f"Evaluate: s_next shapes after updater.update: {[s.shape for s in s_next]}")
-                if r[0] == 100:
-                    print("got_reward")
+                #if r[0] == 100:
+                    #print("got_reward")
                 rewards1 += r[0]
                 rewards2 += r[1]
                 s = s_next

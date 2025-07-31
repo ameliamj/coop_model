@@ -47,7 +47,7 @@ def get_args():
     parser.add_argument("--gaze-type", type=str, default='full', help="can be full or partial")
     parser.add_argument("--obfu", type=float, default=None, help="rate of random obfuscation of the position of the other")
     parser.add_argument("--save-loss", type=bool, default=False, help="whether to save training loss or not...!")
-    parser.add_argument("--run-num", type=int, default=7, help="what saved params of the model to load")
+    parser.add_argument("--run-num", type=int, default=39, help="what saved params of the model to load")
     parser.add_argument("--lever-action", type=bool, default=False, help="whether this is an additional lever action or not")
     parser.add_argument("--gaze-punishment", type=float, default=0, help="gaze punishment")
     parser.add_argument("--small-env", type=bool, default=True, help="small env or not")
