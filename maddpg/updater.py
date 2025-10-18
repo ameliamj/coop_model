@@ -85,7 +85,9 @@ class Updater:
         r = -1 * np.ones(len(s_next)) #default reward (-1)              # OR np.zeros(len(s)) OR some distant measure from current target??
         l = np.zeros(len(s_next)) #lever distances
         p = np.zeros(len(s_next)) #reward distances
-
+        
+        print("s_next_og: ", s_next)
+        
         for i, state in enumerate(s_next):
             print("state: ", state)
             
@@ -115,7 +117,10 @@ class Updater:
                 self.lever_cues[i] = 1
 
             # update lever/reward cues in state
+            print("s_next_before: ", s_next[i])
             s_next[i] = np.concatenate((state, [self.reward_cues[i]]))
+            print("s_next_after: ", s_next[i])
+            
             if self.args.lever_cue != 'none':
                 s_next[i] = np.concatenate((s_next[i], [self.lever_cues[i]]))
             if self.args.lever_action:
@@ -196,6 +201,8 @@ class Updater:
         #print("Init s_next: ", s_next)     
         #print("len(s_next): ", len(s_next))
 
+        print("s_next_og: ", s_next)
+
         for i, state in enumerate(s_next):
             
             print("state: ", state)
@@ -260,7 +267,11 @@ class Updater:
                 self.all_lever_cues.append(timestep)
 
             # update lever/reward cues in state
+            print("s_next_before: ", s_next[i])
             s_next[i] = np.concatenate((state, [self.reward_cues[i]])) #OLD_CODE
+            print("s_next_after: ", s_next[i])
+            
+            
             if self.args.lever_cue != 'none':
                 s_next[i] = np.concatenate((s_next[i], [self.lever_cues[i]]))
             if self.args.lever_action:
