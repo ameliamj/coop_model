@@ -62,6 +62,7 @@ class Runner:
         gazer = Gaze(self.args.gaze_type, self.env)
         for time_step in tqdm(range(self.args.time_steps)):
             #print("timestep: ", time_step)
+            
             # Reset environment at start of each episode
             if time_step % self.episode_limit == 0:
                 seed = np.random.randint(0, 1000)
@@ -69,7 +70,8 @@ class Runner:
                 s, _ = self.env.reset(seed=seed)
                 #print("s: ", s)
                 s = [s[agent_names[0]], s[agent_names[1]]]
-                for i, state in enumerate(s):
+                
+                for i, state in enumerate(s): #Setup the observation State
                     #print(f"Original obs shape for agent {i}: {state.shape}")
                     if self.args.lever_cue != 'none':
                         s[i] = np.concatenate((state, [0, 0]))
@@ -133,7 +135,10 @@ class Runner:
             s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
 
             # Update rewards, coord_times, and cues
+            print("s_next_before_runner: ", s_next)
             r, s_next = updater.update(s_next, time_step, actions, gaze_actions)
+            print("s_next_after_runner: ", s_next)
+            
             # Update buffer and save results
             self.buffer.store_episode(s[:self.args.n_agents], u, r[:self.args.n_agents], s_next[:self.args.n_agents], ha[:self.args.n_agents], ha_next[:self.args.n_agents], hc[:self.args.n_agents], hc_next[:self.args.n_agents], ca[:self.args.n_agents], ca_next[:self.args.n_agents], cc[:self.args.n_agents], cc_next[:self.args.n_agents])
             s = s_next

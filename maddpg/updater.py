@@ -300,6 +300,8 @@ class Updater:
         #print("End s_next: ", s_next)        
         #print("len(s_next): ", len(s_next))
         
+        print("s_next_final: ", s_next)
+        
         return r, s_next
 
 
