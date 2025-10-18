@@ -93,7 +93,11 @@ class raw_env(SimpleEnv, EzPickle):
         )
         self.metadata["name"] = "simple_push_v3"
         
-        self.action_space = [gym.spaces.Discrete(4 if lever_action else 3) for _ in range(2)] #NEW_CODE
+        #NEW_CODE: 
+        self.agents = [agent.name for agent in world.agents]
+        self.step_count = 0
+        self.actions_buffer = {}  # Store actions for all agents in a cycle
+        #self.action_space = [gym.spaces.Discrete(4 if lever_action else 3) for _ in range(2)] #NEW_CODE
     
     '''def step(self, actions): #NEW_CODE
         """Override step to use Scenario.apply_action for velocity updates."""
@@ -257,6 +261,7 @@ class Scenario(BaseScenario):
 
     # using the absolute positions of entities instead of relative position doesn't work! (using relative, agent-centric positions above)
     
+    '''
     def apply_action(self, agent, action, world): #NEW_CODE
         # Default no movement
         print("Apply Action Entered")
@@ -268,7 +273,7 @@ class Scenario(BaseScenario):
         elif action == 2:  # Move right
             agent.state.p_vel[0] = 1.0
         # Action 3 is lever press - handled by updater, no movement
-        
+    '''
     
     
     

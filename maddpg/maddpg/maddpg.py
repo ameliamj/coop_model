@@ -128,7 +128,7 @@ class MADDPG:
                     temp_action, temp_hidden, temp_cell = other_agents[index].policy.actor_target_network(o_next[agent_id], ha_next[agent_id], ca_next[agent_id])
                     u_next.append(temp_action)
                     index += 1
-            q_next, hidden_temp, cell_temp = self.critic_target_network(o_next, u_next, hc_next[self.agent_id], cc_next[self.agent_id])
+            q_next, hidden_temp, cell_temp = self.critic_target_network(o_next, u_next, hc_next[self.agent_id], cc_next[self.agent_id]) #IMPORTANT LINE
             q_next = q_next.detach()
             target_q = (r.unsqueeze(1) + self.args.gamma * q_next).detach()
 

@@ -61,7 +61,7 @@ class Updater:
     def update(self, s_next, timestep, actions, gaze_actions):
         # lever cue can be normal, none, or back in
         # reward function can be buff or coord
-        #print("UPDATE")
+        print("UPDATE")
         real_actions = []
         for agent in actions:
             real_actions.append(actions[agent])
@@ -72,8 +72,10 @@ class Updater:
             r, s_next = self.pavlovian_update(s_next, timestep, real_actions, gaze_actions)
         elif self.args.reward_fn == 'instrumental':
             r, s_next = self.instrumental_update(s_next, timestep, real_actions, gaze_actions)
+            time.sleep(5)
         else: #  self.args.reward_fn == 'coord'
             r, s_next = self.coord_update(s_next, timestep, real_actions, gaze_actions)
+            time.sleep(5)
         return r, s_next
     
     def pavlovian_update(self, s_next, timestep, real_actions, gaze_actions):
@@ -85,6 +87,8 @@ class Updater:
         p = np.zeros(len(s_next)) #reward distances
 
         for i, state in enumerate(s_next):
+            print("state: ", state)
+            
             # find the distance to the lever
             l[i] = -abs(s_next[i][2])
             # find the distance to the reward port
@@ -193,6 +197,9 @@ class Updater:
         #print("len(s_next): ", len(s_next))
 
         for i, state in enumerate(s_next):
+            
+            print("state: ", state)
+            
             '''# find the distance to the lever #OLD_CODE
             l[i] = -np.sqrt(np.sum(np.square(s_next[i][4:6])))
             # find the distance to the reward port
