@@ -72,10 +72,10 @@ class Updater:
             r, s_next = self.pavlovian_update(s_next, timestep, real_actions, gaze_actions)
         elif self.args.reward_fn == 'instrumental':
             r, s_next = self.instrumental_update(s_next, timestep, real_actions, gaze_actions)
-            time.sleep(5)
+            #time.sleep(5)
         else: #  self.args.reward_fn == 'coord'
             r, s_next = self.coord_update(s_next, timestep, real_actions, gaze_actions)
-            time.sleep(5)
+            #time.sleep(5)
         return r, s_next
     
     def pavlovian_update(self, s_next, timestep, real_actions, gaze_actions):
@@ -97,7 +97,7 @@ class Updater:
             p[i] = -abs(s_next[i][3])
 
             # check for lever pull
-            if self.check_lever_pull(i, l, timestep, real_actions):
+            if self.check_lever_pull(i, l, timestep, real_actions) and self.lever_cues[i] == 1:
                 print(f"Lever {i} Pressed")
                 self.lever_cues[i] = 0
                 self.reward_cues[i] = 1
@@ -117,9 +117,9 @@ class Updater:
                 self.lever_cues[i] = 1
 
             # update lever/reward cues in state
-            print("s_next_before: ", s_next[i])
+            #print("s_next_before: ", s_next[i])
             s_next[i] = np.concatenate((state, [self.reward_cues[i]]))
-            print("s_next_after: ", s_next[i])
+            #print("s_next_after: ", s_next[i])
             
             if self.args.lever_cue != 'none':
                 s_next[i] = np.concatenate((s_next[i], [self.lever_cues[i]]))
@@ -201,7 +201,7 @@ class Updater:
         #print("Init s_next: ", s_next)     
         #print("len(s_next): ", len(s_next))
 
-        print("s_next_og: ", s_next)
+        #print("s_next_og: ", s_next)
 
         for i, state in enumerate(s_next):
             
@@ -225,7 +225,7 @@ class Updater:
 
             # check for pull
             pull_prod = np.prod(self.pull_times)
-            if self.check_lever_pull(i, l, timestep, real_actions):
+            if self.check_lever_pull(i, l, timestep, real_actions): #If there is a pull, update the pull times
                 self.pull_times[i] = timestep
                 self.all_pulls[i].append(timestep)
                 if pull_prod > 0 and np.prod(self.pull_times) < 0:
@@ -233,7 +233,7 @@ class Updater:
                     self.first_pulls.append(timestep)
 
             # check for cooperation
-            if np.sum(self.pull_times) > 0 and np.abs(self.pull_times[0] - self.pull_times[1]) < self.args.threshold:
+            if np.sum(self.pull_times) > 0 and np.abs(self.pull_times[0] - self.pull_times[1]) < self.args.threshold:  # if there's cooperation activate the reward magazine
                 print("Successful Cooperation")
                 self.lever_cues = [0, 0]
                 self.reward_cues = [1, 1]
@@ -242,7 +242,7 @@ class Updater:
                 self.coop_pulls.append(timestep)
 
             # check for reward
-            if p[i] > -self.args.buff and self.reward_cues[i] == 1:
+            if p[i] > -self.args.buff and self.reward_cues[i] == 1: #If reached min position to access reward, update the reward
                 print("Reward Gotten")
                 r[i] = self.args.reward_value
                 self.reward_cues[i] = 0
@@ -256,12 +256,12 @@ class Updater:
                     new_wait = timestep + np.random.randint(self.args.fail_low, self.args.fail_high, 1)
                     self.waits = [new_wait, new_wait]
                     self.pull_times = [-1, -1]
+            
             # lever out after rewards
             if np.sum(self.lever_cues) == 0 and np.sum(self.reward_cues) == 0 and np.mean(self.waits) < timestep:
                 new_wait = timestep + np.random.randint(self.args.low, self.args.high, 1)
                 self.waits = [new_wait, new_wait]
             
-            #print("waitTime: ", np.mean(self.waits))
             if int(np.mean(self.waits)) == timestep and np.sum(self.reward_cues) == 0:
                 self.lever_cues = [1, 1]
                 self.all_lever_cues.append(timestep)
@@ -299,6 +299,8 @@ class Updater:
         #print("len(s_next): ", len(s_next))
         
         #print("s_next_final: ", s_next)
+        
+        print("r: ", r)
         
         return r, s_next
 
