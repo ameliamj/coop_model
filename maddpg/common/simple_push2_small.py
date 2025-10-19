@@ -277,6 +277,8 @@ class Scenario(BaseScenario):
             ])
         #print(f"Observation for {agent.name}: {obsv} (shape: {obsv.shape})")
         
+        print("obsv: ", obsv)
+        
         return obsv
 
     # using the absolute positions of entities instead of relative position doesn't work! (using relative, agent-centric positions above)

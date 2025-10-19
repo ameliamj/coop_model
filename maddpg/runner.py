@@ -120,6 +120,7 @@ class Runner:
                 
             #print("temp_actions: ", temp_actions)
             s_next, r, done, _, info = self.env.step(temp_actions)
+            print("s_next_before_runner: ", s_next)
             
             # Verify cage limit constraints
             #print("Runner: ")
@@ -135,9 +136,9 @@ class Runner:
             s_next = [s_next[agent_names[0]], s_next[agent_names[1]]]
 
             # Update rewards, coord_times, and cues
-            print("s_next_before_runner: ", s_next)
+            #print("s_next_before_runner: ", s_next)
             r, s_next = updater.update(s_next, time_step, actions, gaze_actions)
-            print("s_next_after_runner: ", s_next)
+            #print("s_next_after_runner: ", s_next)
             
             # Update buffer and save results
             self.buffer.store_episode(s[:self.args.n_agents], u, r[:self.args.n_agents], s_next[:self.args.n_agents], ha[:self.args.n_agents], ha_next[:self.args.n_agents], hc[:self.args.n_agents], hc_next[:self.args.n_agents], ca[:self.args.n_agents], ca_next[:self.args.n_agents], cc[:self.args.n_agents], cc_next[:self.args.n_agents])

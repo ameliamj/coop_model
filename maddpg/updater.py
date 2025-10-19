@@ -205,7 +205,7 @@ class Updater:
 
         for i, state in enumerate(s_next):
             
-            print("state: ", state)
+            #print("state: ", state)
             
             '''# find the distance to the lever #OLD_CODE
             l[i] = -np.sqrt(np.sum(np.square(s_next[i][4:6])))
@@ -267,9 +267,7 @@ class Updater:
                 self.all_lever_cues.append(timestep)
 
             # update lever/reward cues in state
-            print("s_next_before: ", s_next[i])
             s_next[i] = np.concatenate((state, [self.reward_cues[i]])) #OLD_CODE
-            print("s_next_after: ", s_next[i])
             
             
             if self.args.lever_cue != 'none':
@@ -300,7 +298,7 @@ class Updater:
         #print("End s_next: ", s_next)        
         #print("len(s_next): ", len(s_next))
         
-        print("s_next_final: ", s_next)
+        #print("s_next_final: ", s_next)
         
         return r, s_next
 
