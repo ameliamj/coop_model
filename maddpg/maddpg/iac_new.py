@@ -10,7 +10,7 @@ import torch
 import os
 import numpy as np
 import torch.nn.functional as F
-from maddpg.actor_critic import PActor
+from maddpg.actor_critic_new import PActor
 from maddpg.actor_critic3 import Critic3
 
 # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
