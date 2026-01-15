@@ -1,13 +1,18 @@
 import numpy as np
 import torch
 from maddpg.maddpg import MADDPG
+from maddpg.iac_new import IAC
 
 class Agent:
     def __init__(self, agent_id, args):
         self.args = args
         self.agent_id = agent_id
-        if True: # self.args.method == 'maddpg':
+        if self.args.method == 'maddpg':
             self.policy = MADDPG(args, agent_id)
+        elif self.args.method == 'ica':
+            self.policy = IAC(args, agent_id)
+        else:
+            raise ValueError(f"Unknown method: {self.args.method}")
 
     def select_action(self, o, h, c, noise_rate, epsilon):
         if np.random.uniform() < epsilon:
