@@ -8,8 +8,10 @@ class Agent:
         self.args = args
         self.agent_id = agent_id
         if self.args.method == 'maddpg':
+            print("Maddpg Model")
             self.policy = MADDPG(args, agent_id)
         elif self.args.method == 'ica':
+            print("IAC Model")
             self.policy = IAC(args, agent_id)
         else:
             raise ValueError(f"Unknown method: {self.args.method}")
@@ -49,7 +51,7 @@ class Agent:
         return q_val.squeeze(0).cpu().numpy().copy(), hidden, cell
         
 
-    def learn(self, transitions, other_agents):
+    def learn(self, transitions, other_agents, timestep = 0):
         # Pass the timestep for IAC compatibility
         if self.args.method == 'ica':
             self.policy.train(transitions, other_agents, timestep)
