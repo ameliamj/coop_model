@@ -120,7 +120,7 @@ class Runner:
                 
             #print("temp_actions: ", temp_actions)
             s_next, r, done, _, info = self.env.step(temp_actions)
-            print("s_next_before_runner: ", s_next)
+            #print("s_next_before_runner: ", s_next)
             
             # Verify cage limit constraints
             #print("Runner: ")
@@ -140,6 +140,8 @@ class Runner:
             r, s_next = updater.update(s_next, time_step, actions, gaze_actions)
             #print("s_next_after_runner: ", s_next)
             
+            print("u: ", u)
+            
             # Update buffer and save results
             self.buffer.store_episode(s[:self.args.n_agents], u, r[:self.args.n_agents], s_next[:self.args.n_agents], ha[:self.args.n_agents], ha_next[:self.args.n_agents], hc[:self.args.n_agents], hc_next[:self.args.n_agents], ca[:self.args.n_agents], ca_next[:self.args.n_agents], cc[:self.args.n_agents], cc_next[:self.args.n_agents])
             s = s_next
@@ -152,7 +154,7 @@ class Runner:
                 for agent in self.agents:
                     other_agents = self.agents.copy()
                     other_agents.remove(agent)
-                    agent.learn(transitions, other_agents)
+                    agent.learn(transitions, other_agents, time_step)
             if time_step > 0 and (time_step + 1) % self.args.evaluate_rate == 0:
                 return1, return2, gaze_actions1, gaze_actions2 = self.evaluate()
                 returns1.append(return1)

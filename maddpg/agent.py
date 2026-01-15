@@ -30,18 +30,31 @@ class Agent:
         return u.copy(), hidden, cell
 
     def get_value(self, o, u, h, c, agent_id):
-        o_input = []
-        u_input = []
-        for i, obsv in enumerate(o):
-            o_input.append(torch.tensor(o[i], dtype=torch.float32).unsqueeze(0))# .reshape(1, -1))
-            u_input.append(torch.tensor(u[i], dtype=torch.float32).unsqueeze(0))
-        q_val, hidden, cell = self.policy.critic_network(o_input, u_input, h, c)
-        q_val = q_val.squeeze(0)
-        return_val = q_val.cpu().numpy()        
-        return return_val.copy(), hidden, cell
+        if self.args.method == 'maddpg':
+            o_input = []
+            u_input = []
+            for i, obsv in enumerate(o):
+                o_input.append(torch.tensor(o[i], dtype=torch.float32).unsqueeze(0))# .reshape(1, -1))
+                u_input.append(torch.tensor(u[i], dtype=torch.float32).unsqueeze(0))
+            q_val, hidden, cell = self.policy.critic_network(o_input, u_input, h, c)
+            q_val = q_val.squeeze(0)
+            return_val = q_val.cpu().numpy() 
+            return return_val.copy(), hidden, cell
+        else:
+            # Independent input for IAC
+            o_self = torch.tensor(o[self.agent_id], dtype=torch.float32).unsqueeze(0)
+            u_self = torch.tensor(u[self.agent_id], dtype=torch.float32).unsqueeze(0)
+            q_val, hidden, cell = self.policy.critic_network(o_self, u_self, h, c)
+            
+        return q_val.squeeze(0).cpu().numpy().copy(), hidden, cell
+        
 
     def learn(self, transitions, other_agents):
-        self.policy.train(transitions, other_agents)
+        # Pass the timestep for IAC compatibility
+        if self.args.method == 'ica':
+            self.policy.train(transitions, other_agents, timestep)
+        else:
+            self.policy.train(transitions, other_agents)
 
 
 
