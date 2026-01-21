@@ -139,6 +139,7 @@ class Updater:
                     time_since_pull = (timestep - self.pull_times[i]) / self.args.threshold
                 else:
                     time_since_pull = 0  # No pull yet
+                    
                 s_next[i] = np.concatenate((s_next[i], [time_since_pull]))
 
             # negative reward for gaze
