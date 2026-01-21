@@ -8,7 +8,8 @@ class Updater:
         self.args = args
         self.env = env
         self.pull_times = [-1, -1]
-        self.lever_cues = [0, 0]
+        #self.lever_cues = [0, 0]
+        self.lever_cues = [1, 1] #NEW
         self.reward_cues = [0, 0]
         self.lever_actions = [0, 0]
         self.first_pull = -1 - self.args.threshold
@@ -62,6 +63,8 @@ class Updater:
         # lever cue can be normal, none, or back in
         # reward function can be buff or coord
         print("UPDATE")
+        print("s_next beginning: ", s_next)
+        time.sleep(2.2)
         real_actions = []
         for agent in actions:
             real_actions.append(actions[agent])
@@ -72,11 +75,13 @@ class Updater:
             r, s_next = self.pavlovian_update(s_next, timestep, real_actions, gaze_actions)
         elif self.args.reward_fn == 'instrumental':
             r, s_next = self.instrumental_update(s_next, timestep, real_actions, gaze_actions)
-            #time.sleep(5)
+            print("s_next final: ", s_next)
+            time.sleep(5)
         else: #  self.args.reward_fn == 'coord'
             r, s_next = self.coord_update(s_next, timestep, real_actions, gaze_actions)
             #time.sleep(5)
         return r, s_next
+    
     
     def pavlovian_update(self, s_next, timestep, real_actions, gaze_actions):
         a = 1
@@ -89,7 +94,7 @@ class Updater:
         print("s_next_og: ", s_next)
         
         for i, state in enumerate(s_next):
-            print("state: ", state)
+            #print("state: ", state)
             
             # find the distance to the lever
             l[i] = -abs(s_next[i][2])
@@ -98,7 +103,7 @@ class Updater:
 
             # check for lever pull
             if self.check_lever_pull(i, l, timestep, real_actions) and self.lever_cues[i] == 1:
-                print(f"Lever {i} Pressed")
+                #print(f"Lever {i} Pressed")
                 self.lever_cues[i] = 0
                 self.reward_cues[i] = 1
                 self.pull_times[i] = timestep
@@ -106,14 +111,14 @@ class Updater:
 
             # check for reward
             if p[i] > -self.args.buff and self.reward_cues[i] == 1:
-                print("Reward Gotten")
+                #print("Reward Gotten")
                 r[i] = self.args.reward_value
                 self.reward_cues[i] = 0
                 self.waits[i] = timestep + np.random.randint(self.args.low, self.args.high, 1)
                 self.all_rewards[i].append(timestep)
 
             # check for lever reset 
-            if timestep == self.waits[i]:
+            if timestep >= self.waits[i]:
                 self.lever_cues[i] = 1
 
             # update lever/reward cues in state
