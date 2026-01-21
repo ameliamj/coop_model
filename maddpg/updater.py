@@ -74,7 +74,7 @@ class Updater:
         elif self.args.reward_fn == 'instrumental':
             r, s_next = self.instrumental_update(s_next, timestep, real_actions, gaze_actions)
             print("s_next final: ", s_next)
-            time.sleep(5)
+            time.sleep(10)
         else: #  self.args.reward_fn == 'coord'
             r, s_next = self.coord_update(s_next, timestep, real_actions, gaze_actions)
             #time.sleep(5)
@@ -89,8 +89,8 @@ class Updater:
         l = np.zeros(len(s_next)) #lever distances
         p = np.zeros(len(s_next)) #reward distances
         
-        print("s_next_og: ", s_next)
-        time.sleep(5)
+        #print("s_next_og: ", s_next)
+        #time.sleep(5)
         
         for i, state in enumerate(s_next):
             #print("state: ", state)
