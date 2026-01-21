@@ -9,6 +9,7 @@ from updater import Updater
 from gaze import Gaze
 from torch.nn import functional as F
 import time
+import pygame
 
 
 class Runner:
@@ -104,10 +105,10 @@ class Runner:
                     #print(f"Agent {agent_id} observation shape after gaze: {s[agent_id].shape}")
                     
                     action, ha_next[agent_id], ca_next[agent_id] = agent.select_action(s[agent_id], ha[agent_id], ca[agent_id], noise_rate=self.noise, epsilon=self.epsilon)
-                    print("\nAgent: ", agent_names[agent_id])
+                    ##print("\nAgent: ", agent_names[agent_id])
                     u.append(action)
                     actions[agent_names[agent_id]], gaze_actions[agent_id] = Updater.probs_to_actions(action, self.args.lever_action)
-                    print("Action: ", actions[agent_names[agent_id]])
+                    ##print("Action: ", actions[agent_names[agent_id]])
 
                 for agent_id, agent in enumerate(self.agents):
                     temp_val, hc_next[agent_id], cc_next[agent_id] = agent.get_value(s[:self.args.n_agents], u, hc[agent_id], cc[agent_id], agent_id=agent_id)
@@ -140,7 +141,7 @@ class Runner:
             r, s_next = updater.update(s_next, time_step, actions, gaze_actions)
             #print("s_next_after_runner: ", s_next)
             
-            print("u: ", u)
+            ##print("u: ", u)
             
             # Update buffer and save results
             self.buffer.store_episode(s[:self.args.n_agents], u, r[:self.args.n_agents], s_next[:self.args.n_agents], ha[:self.args.n_agents], ha_next[:self.args.n_agents], hc[:self.args.n_agents], hc_next[:self.args.n_agents], ca[:self.args.n_agents], ca_next[:self.args.n_agents], cc[:self.args.n_agents], cc_next[:self.args.n_agents])
@@ -180,6 +181,8 @@ class Runner:
 
     def evaluate(self):
         #print("/nENTERING EVALUATE: ")
+        paused = False
+        
         returns1 = []
         returns2 = []
         pulls = {}
@@ -218,6 +221,38 @@ class Runner:
             eps_actions = {0: [], 1: []}
             eps_positions = {0: [], 1: []}
             for time_step in range(self.args.evaluate_episode_len):
+                
+                # --- PAUSE LOGIC START --- (To test you can press space bar to pause and analyze.)
+                if self.args.render_mode == 'human':
+                    # Listen for key presses
+                    for event in pygame.event.get():
+                        if event.type == pygame.KEYDOWN:
+                            if event.key == pygame.K_SPACE:  # Press Space to toggle
+                                paused = not paused
+                                if paused:
+                                    print("Environment Paused. Press SPACE to resume.")
+                                else:
+                                    print("Resumed.")
+                        
+                        # Also allow closing the window to stop the script
+                        if event.type == pygame.QUIT:
+                            pygame.quit()
+                            exit()
+
+                    # While paused, stay in this loop and keep rendering
+                    while paused:
+                        self.env.render() # Keep the window responsive
+                        for event in pygame.event.get():
+                            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                                paused = False
+                                print("Resumed.")
+                            if event.type == pygame.QUIT:
+                                pygame.quit()
+                                exit()
+                        time.sleep(0.1) 
+                # --- PAUSE LOGIC END ---
+                
+                
                 #time.sleep(0.5)
                 self.env.render()
                 actions = {}
@@ -244,7 +279,7 @@ class Runner:
                             #print(f"Lever press by {agent_names[agent_id]} at x_pos: {s[agent_id][0]}")
                         
                 # Do action
-                print("actions: ", actions)
+                ##print("actions: ", actions)
                 temp_actions = {}
                 for name in agent_names:
                     temp_actions[name] = actions[name] if actions[name] != 3 else 0

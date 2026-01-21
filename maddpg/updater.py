@@ -63,8 +63,6 @@ class Updater:
         # lever cue can be normal, none, or back in
         # reward function can be buff or coord
         print("UPDATE")
-        print("s_next beginning: ", s_next)
-        time.sleep(2.2)
         real_actions = []
         for agent in actions:
             real_actions.append(actions[agent])
@@ -92,6 +90,7 @@ class Updater:
         p = np.zeros(len(s_next)) #reward distances
         
         print("s_next_og: ", s_next)
+        time.sleep(5)
         
         for i, state in enumerate(s_next):
             #print("state: ", state)
