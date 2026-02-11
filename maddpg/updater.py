@@ -109,7 +109,7 @@ class Updater:
             p[i] = -abs(s_next[i][3])
 
             # check for lever pull
-            if self.check_lever_pull(i, l, timestep, real_actions) and self.lever_cues[i] == 1:
+            if self.check_lever_pull_instrumental(i, l, timestep, real_actions) and self.lever_cues[i] == 1:
                 #print(f"Lever {i} Pressed")
                 self.lever_cues[i] = 0
                 self.reward_cues[i] = 1
