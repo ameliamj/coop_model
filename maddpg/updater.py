@@ -93,7 +93,7 @@ class Updater:
         a = 1
 
     def instrumental_update(self, s_next, timestep, real_actions, gaze_actions):
-        r = -0.1 * np.ones(len(s_next)) #default reward (-1)              # OR np.zeros(len(s)) OR some distant measure from current target??
+        r = -1 * np.ones(len(s_next)) #default reward (-1)              # OR np.zeros(len(s)) OR some distant measure from current target??
         l = np.zeros(len(s_next)) #lever distances
         p = np.zeros(len(s_next)) #reward distances
         
