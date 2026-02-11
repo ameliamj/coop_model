@@ -35,8 +35,8 @@ except Exception:
     filedialog = None
 
 
-ARENA_X_MIN = -0.30
-ARENA_X_MAX = 0.30
+ARENA_X_MIN = -0.4
+ARENA_X_MAX = 0.4
 LEVER_X = -0.25
 PORT_X = 0.25
 Y_TOP = 0.10
@@ -336,9 +336,6 @@ class LogSimulationViewer:
             "  Space      : play/pause\n"
             "  Home/End   : first/last step\n"
             "\n"
-            "Note\n"
-            "  If all_positions stores only one value per step,\n"
-            "  this viewer reconstructs x_pos from x_lever_rel.\n"
         )
 
         self.state_text.set_text("\n\n".join(state_blocks + [events_line, notes]))
