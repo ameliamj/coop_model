@@ -60,9 +60,19 @@ class AgentState:
 
 
 class LogSimulationViewer:
-    def __init__(self, log_dir: str, interval_ms: int = 150):
+    def __init__(
+        self,
+        log_dir: str,
+        interval_ms: int = 150,
+        reward_value: float = 100.0,
+        step_penalty: float = -1.0,
+        gaze_penalty: float = 0.0,
+    ):
         self.log_dir = log_dir
         self.interval_ms = interval_ms
+        self.reward_value = reward_value
+        self.step_penalty = step_penalty
+        self.gaze_penalty = gaze_penalty
 
         self.positions = self._load_pickle("all_positions.pkl")
         self.actions = self._load_pickle("all_actions.pkl")
@@ -215,20 +225,24 @@ class LogSimulationViewer:
     def _arena_y(self, agent_id: int) -> float:
         return Y_TOP if agent_id == 0 else Y_BOTTOM
 
-    def _reward_event_cumsum(self, ep: int, ep_len: int, agent_id: int) -> List[int]:
+    def _return_cumsum(self, ep: int, ep_len: int, agent_id: int) -> List[float]:
         reward_steps = set(self.rewards.get(ep, {}).get(agent_id, []))
-        running = 0
+        running = 0.0
         out = []
         for t in range(ep_len):
+            running += self.step_penalty
             if t in reward_steps:
-                running += 1
+                running += self.reward_value
+            _, gaze_action = self._actions_at_t(ep, t, agent_id)
+            if gaze_action == 1:
+                running += self.gaze_penalty
             out.append(running)
         return out
 
     def _build_figure(self):
         self.fig = plt.figure(figsize=(13, 7))
         gs = self.fig.add_gridspec(
-            2, 2, width_ratios=[2.3, 1.3], height_ratios=[2.0, 1.0], hspace=0.16, wspace=0.16
+            2, 2, width_ratios=[2.3, 1.3], height_ratios=[2.0, 1.0], hspace=0.30, wspace=0.16
         )
         self.ax_env = self.fig.add_subplot(gs[0, 0])
         self.ax_reward = self.fig.add_subplot(gs[1, 0])
@@ -257,9 +271,9 @@ class LogSimulationViewer:
             fontsize=10,
         )
 
-        self.ax_reward.set_title("Reward Over Time", fontsize=10)
+        self.ax_reward.set_title("Return Over Time", fontsize=10, pad=12)
         self.ax_reward.set_xlabel("timestep")
-        self.ax_reward.set_ylabel("cumulative rewards")
+        self.ax_reward.set_ylabel("cumulative return")
         self.ax_reward.grid(alpha=0.25)
 
         for aid in [0, 1]:
@@ -371,19 +385,26 @@ class LogSimulationViewer:
         self.state_text.set_text("\n\n".join(state_blocks + [events_line, notes]))
 
         xs = list(range(ep_len))
-        ymax = 1
-        total = [0] * ep_len
+        ymax = 1.0
+        ymin = 0.0
+        total = [0.0] * ep_len
         for aid in [0, 1]:
-            cumsum = self._reward_event_cumsum(ep, ep_len, aid)
+            cumsum = self._return_cumsum(ep, ep_len, aid)
             self.reward_lines[aid].set_data(xs, cumsum)
             total = [a + b for a, b in zip(total, cumsum)]
             if cumsum:
                 ymax = max(ymax, max(cumsum))
+                ymin = min(ymin, min(cumsum))
         self.total_reward_line.set_data(xs, total)
         if total:
             ymax = max(ymax, max(total))
+            ymin = min(ymin, min(total))
         self.ax_reward.set_xlim(0, max(1, ep_len - 1))
-        self.ax_reward.set_ylim(0, ymax + 1)
+        if ymax == ymin:
+            ymax += 1.0
+            ymin -= 1.0
+        pad = max(1.0, 0.05 * (ymax - ymin))
+        self.ax_reward.set_ylim(ymin - pad, ymax + pad)
         self.reward_cursor.set_xdata([self.t, self.t])
 
         self.fig.canvas.draw_idle()
@@ -433,7 +454,6 @@ class LogSimulationViewer:
     def run(self):
         self._build_figure()
         self._update_frame()
-        plt.tight_layout()
         plt.show()
 
 
@@ -456,6 +476,14 @@ def parse_args():
         help="Directory with all_positions.pkl/all_actions.pkl and optional other logs",
     )
     parser.add_argument("--interval-ms", type=int, default=150, help="Playback interval in milliseconds")
+    parser.add_argument(
+        "--reward-value",
+        type=float,
+        default=100.0,
+        help="Reward magnitude added when timestep appears in all_rewards.pkl",
+    )
+    parser.add_argument("--step-penalty", type=float, default=-1.0, help="Per-timestep reward baseline")
+    parser.add_argument("--gaze-penalty", type=float, default=0.0, help="Penalty added when gaze action == 1")
     return parser.parse_args()
 
 
@@ -468,7 +496,13 @@ def main():
     if log_dir is None:
         raise SystemExit("No log directory provided. Use --log-dir or choose a folder in the file dialog.")
 
-    viewer = LogSimulationViewer(log_dir=log_dir, interval_ms=args.interval_ms)
+    viewer = LogSimulationViewer(
+        log_dir=log_dir,
+        interval_ms=args.interval_ms,
+        reward_value=args.reward_value,
+        step_penalty=args.step_penalty,
+        gaze_penalty=args.gaze_penalty,
+    )
     viewer.run()
 
 
