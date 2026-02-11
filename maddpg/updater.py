@@ -93,7 +93,7 @@ class Updater:
         a = 1
 
     def instrumental_update(self, s_next, timestep, real_actions, gaze_actions):
-        r = -1 * np.ones(len(s_next)) #default reward (-1)              # OR np.zeros(len(s)) OR some distant measure from current target??
+        r = -0.1 * np.ones(len(s_next)) #default reward (-1)              # OR np.zeros(len(s)) OR some distant measure from current target??
         l = np.zeros(len(s_next)) #lever distances
         p = np.zeros(len(s_next)) #reward distances
         
@@ -109,7 +109,7 @@ class Updater:
             p[i] = -abs(s_next[i][3])
 
             # check for lever pull
-            if self.check_lever_pull_instrumental(i, l, timestep, real_actions) and self.lever_cues[i] == 1:
+            if self.check_lever_pull(i, l, timestep, real_actions) and self.lever_cues[i] == 1:
                 #print(f"Lever {i} Pressed")
                 self.lever_cues[i] = 0
                 self.reward_cues[i] = 1
