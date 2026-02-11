@@ -89,6 +89,7 @@ class LogSimulationViewer:
         self.state_text = None
         self.title_text = None
         self.reward_lines = {}
+        self.total_reward_line = None
         self.reward_cursor = None
 
     def _load_pickle(self, filename: str, required: bool = True):
@@ -225,12 +226,13 @@ class LogSimulationViewer:
         return out
 
     def _build_figure(self):
-        self.fig = plt.figure(figsize=(12, 6))
-        gs = self.fig.add_gridspec(1, 2, width_ratios=[2.2, 1.3])
+        self.fig = plt.figure(figsize=(13, 7))
+        gs = self.fig.add_gridspec(
+            2, 2, width_ratios=[2.3, 1.3], height_ratios=[2.0, 1.0], hspace=0.16, wspace=0.16
+        )
         self.ax_env = self.fig.add_subplot(gs[0, 0])
-        right_gs = gs[0, 1].subgridspec(2, 1, height_ratios=[2.0, 1.0], hspace=0.12)
-        self.ax_state = self.fig.add_subplot(right_gs[0, 0])
-        self.ax_reward = self.fig.add_subplot(right_gs[1, 0])
+        self.ax_reward = self.fig.add_subplot(gs[1, 0])
+        self.ax_state = self.fig.add_subplot(gs[:, 1])
 
         self._draw_static_arena()
 
@@ -263,6 +265,9 @@ class LogSimulationViewer:
         for aid in [0, 1]:
             line, = self.ax_reward.plot([], [], color=AGENT_COLORS[aid], lw=2, label=AGENT_NAMES[aid])
             self.reward_lines[aid] = line
+        self.total_reward_line, = self.ax_reward.plot(
+            [], [], color="black", lw=2, ls="--", label="total"
+        )
         self.reward_cursor = self.ax_reward.axvline(0, color="black", ls="--", lw=1)
         self.ax_reward.legend(loc="upper left", fontsize=8)
 
@@ -367,11 +372,16 @@ class LogSimulationViewer:
 
         xs = list(range(ep_len))
         ymax = 1
+        total = [0] * ep_len
         for aid in [0, 1]:
             cumsum = self._reward_event_cumsum(ep, ep_len, aid)
             self.reward_lines[aid].set_data(xs, cumsum)
+            total = [a + b for a, b in zip(total, cumsum)]
             if cumsum:
                 ymax = max(ymax, max(cumsum))
+        self.total_reward_line.set_data(xs, total)
+        if total:
+            ymax = max(ymax, max(total))
         self.ax_reward.set_xlim(0, max(1, ep_len - 1))
         self.ax_reward.set_ylim(0, ymax + 1)
         self.reward_cursor.set_xdata([self.t, self.t])
