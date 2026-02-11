@@ -81,12 +81,15 @@ class LogSimulationViewer:
         self.fig = None
         self.ax_env = None
         self.ax_state = None
+        self.ax_reward = None
         self.timer = None
 
         self.agent_dots = {}
         self.agent_paths = {}
         self.state_text = None
         self.title_text = None
+        self.reward_lines = {}
+        self.reward_cursor = None
 
     def _load_pickle(self, filename: str, required: bool = True):
         path = os.path.join(self.log_dir, filename)
@@ -211,11 +214,23 @@ class LogSimulationViewer:
     def _arena_y(self, agent_id: int) -> float:
         return Y_TOP if agent_id == 0 else Y_BOTTOM
 
+    def _reward_event_cumsum(self, ep: int, ep_len: int, agent_id: int) -> List[int]:
+        reward_steps = set(self.rewards.get(ep, {}).get(agent_id, []))
+        running = 0
+        out = []
+        for t in range(ep_len):
+            if t in reward_steps:
+                running += 1
+            out.append(running)
+        return out
+
     def _build_figure(self):
         self.fig = plt.figure(figsize=(12, 6))
         gs = self.fig.add_gridspec(1, 2, width_ratios=[2.2, 1.3])
         self.ax_env = self.fig.add_subplot(gs[0, 0])
-        self.ax_state = self.fig.add_subplot(gs[0, 1])
+        right_gs = gs[0, 1].subgridspec(2, 1, height_ratios=[2.0, 1.0], hspace=0.12)
+        self.ax_state = self.fig.add_subplot(right_gs[0, 0])
+        self.ax_reward = self.fig.add_subplot(right_gs[1, 0])
 
         self._draw_static_arena()
 
@@ -239,6 +254,17 @@ class LogSimulationViewer:
             family="monospace",
             fontsize=10,
         )
+
+        self.ax_reward.set_title("Reward Over Time", fontsize=10)
+        self.ax_reward.set_xlabel("timestep")
+        self.ax_reward.set_ylabel("cumulative rewards")
+        self.ax_reward.grid(alpha=0.25)
+
+        for aid in [0, 1]:
+            line, = self.ax_reward.plot([], [], color=AGENT_COLORS[aid], lw=2, label=AGENT_NAMES[aid])
+            self.reward_lines[aid] = line
+        self.reward_cursor = self.ax_reward.axvline(0, color="black", ls="--", lw=1)
+        self.ax_reward.legend(loc="upper left", fontsize=8)
 
         self.fig.canvas.mpl_connect("key_press_event", self._on_key)
 
@@ -334,11 +360,22 @@ class LogSimulationViewer:
             "  Left/Right : step\n"
             "  Up/Down    : episode\n"
             "  Space      : play/pause\n"
-            "  Home/End   : first/last step\n"
             "\n"
         )
 
         self.state_text.set_text("\n\n".join(state_blocks + [events_line, notes]))
+
+        xs = list(range(ep_len))
+        ymax = 1
+        for aid in [0, 1]:
+            cumsum = self._reward_event_cumsum(ep, ep_len, aid)
+            self.reward_lines[aid].set_data(xs, cumsum)
+            if cumsum:
+                ymax = max(ymax, max(cumsum))
+        self.ax_reward.set_xlim(0, max(1, ep_len - 1))
+        self.ax_reward.set_ylim(0, ymax + 1)
+        self.reward_cursor.set_xdata([self.t, self.t])
+
         self.fig.canvas.draw_idle()
 
     def _tick(self):
