@@ -58,6 +58,14 @@ class Updater:
             return lever_action and l[i] > -self.args.buff and l[i] != 0 and (
                     timestep - self.pull_times[i]) > self.args.refract and self.lever_cues[i] == 1
 
+    def check_lever_pull_instrumental(self, i, l, timestep, real_actions): #If Lever Cue, then it checks whether there has been a lever action and the levers are active and agent is close enough to lever and enough time has passed since last pull and agent is not exactly at lever's postiion
+        lever_action = (self.args.lever_action == False) or (self.args.lever_action == True and real_actions[i] == 3)
+        if self.args.lever_cue == 'none':
+            return lever_action and l[i] > -self.args.buff and (
+                        timestep - self.pull_times[i]) > self.args.refract
+        else:
+            return lever_action and l[i] > -self.args.buff and (
+                    timestep - self.pull_times[i]) > self.args.refract and self.lever_cues[i] == 1
 
     def update(self, s_next, timestep, actions, gaze_actions):
         # lever cue can be normal, none, or back in
@@ -74,7 +82,7 @@ class Updater:
         elif self.args.reward_fn == 'instrumental':
             r, s_next = self.instrumental_update(s_next, timestep, real_actions, gaze_actions)
             print("s_next final: ", s_next)
-            time.sleep(10)
+            #time.sleep(10)
         else: #  self.args.reward_fn == 'coord'
             r, s_next = self.coord_update(s_next, timestep, real_actions, gaze_actions)
             #time.sleep(5)
@@ -85,7 +93,7 @@ class Updater:
         a = 1
 
     def instrumental_update(self, s_next, timestep, real_actions, gaze_actions):
-        r = -1 * np.ones(len(s_next)) #default reward (-1)              # OR np.zeros(len(s)) OR some distant measure from current target??
+        r = -0.1 * np.ones(len(s_next)) #default reward (-1)              # OR np.zeros(len(s)) OR some distant measure from current target??
         l = np.zeros(len(s_next)) #lever distances
         p = np.zeros(len(s_next)) #reward distances
         
@@ -101,7 +109,7 @@ class Updater:
             p[i] = -abs(s_next[i][3])
 
             # check for lever pull
-            if self.check_lever_pull(i, l, timestep, real_actions) and self.lever_cues[i] == 1:
+            if self.check_lever_pull_instrumental(i, l, timestep, real_actions) and self.lever_cues[i] == 1:
                 #print(f"Lever {i} Pressed")
                 self.lever_cues[i] = 0
                 self.reward_cues[i] = 1
