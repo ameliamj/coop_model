@@ -29,10 +29,24 @@ DEFAULT_RAT_IMAGE = Path(__file__).with_name("rat_img.png!sw800")
 POLICY_COLOR = "#2c7fb8"
 PRED_COLOR = "#d95f0e"
 PATH_COLOR = "#7a7a7a"
+TOTAL_COLOR = "#222222"
 LEVER_ON = "#f6c945"
 LEVER_OFF = "#7aa6c2"
 REWARD_ON = "#57b86c"
 REWARD_OFF = "#b8d8c1"
+AGENT_COLORS = ["#4c72b0", "#c44e52", "#55a868", "#8172b3"]
+
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+        "axes.titlesize": 15,
+        "axes.labelsize": 13,
+        "xtick.labelsize": 11,
+        "ytick.labelsize": 11,
+        "legend.fontsize": 10,
+    }
+)
 
 
 @dataclass
@@ -63,6 +77,9 @@ class EvalLogViewer:
         interval_ms: int = 150,
         rat_image: Optional[str] = None,
         selected_agent: Optional[int] = None,
+        reward_value: Optional[float] = None,
+        step_penalty: float = -1.0,
+        gaze_penalty: float = 0.0,
     ):
         self.log_dir = self._resolve_log_dir(log_dir)
         self.interval_ms = interval_ms
@@ -105,16 +122,20 @@ class EvalLogViewer:
             self.selected_agent = selected_agent
         else:
             self.selected_agent = self.agent_ids[0]
+        self.agent_colors = {aid: AGENT_COLORS[idx % len(AGENT_COLORS)] for idx, aid in enumerate(self.agent_ids)}
 
         self.num_move_actions = self._infer_num_move_actions()
         self.move_labels = self._move_labels(self.num_move_actions)
         self.gaze_labels = ["no_gaze", "gaze"]
         self.cue_layout = self._infer_cue_layout()
-        self.reward_value = float(self.args_dict.get("reward_value", 100.0))
+        self.reward_value = float(reward_value) if reward_value is not None else float(self.args_dict.get("reward_value", 100.0))
+        self.step_penalty = float(step_penalty)
+        self.gaze_penalty = float(gaze_penalty)
         self.embed_loss = str(self.args_dict.get("embed_loss", "unknown"))
         self.embed_input = str(self.args_dict.get("embed_input", "none"))
 
         self.lever_pos, self.reward_pos = self._infer_landmarks()
+        self.lane_y = {aid: self._infer_lane_y(aid) for aid in self.agent_ids}
         self.bounds = self._infer_bounds()
         self.rat_rgba = self._load_rat_image(self.rat_image_path)
 
@@ -125,10 +146,7 @@ class EvalLogViewer:
         self.fig = None
         self.ax_env = None
         self.ax_trace = None
-        self.ax_critic = None
         self.ax_info = None
-        self.ax_move = None
-        self.ax_gaze = None
         self.timer = None
 
         self.title_text = None
@@ -136,20 +154,13 @@ class EvalLogViewer:
         self.path_lines: Dict[int, Any] = {}
         self.rat_artists: Dict[int, Any] = {}
         self.rat_offsets: Dict[int, OffsetImage] = {}
-        self.rat_labels: Dict[int, Any] = {}
         self.lever_patch = None
         self.reward_patch = None
         self.return_line = None
-        self.critic_line = None
+        self.total_return_line = None
         self.trace_cursor = None
         self.pull_scatter = None
         self.reward_scatter = None
-        self.move_policy_bars: List[Any] = []
-        self.move_pred_bars: List[Any] = []
-        self.gaze_policy_bars: List[Any] = []
-        self.gaze_pred_bars: List[Any] = []
-        self.move_note = None
-        self.gaze_note = None
 
     @staticmethod
     def _resolve_log_dir(log_dir: str) -> str:
@@ -273,6 +284,19 @@ class EvalLogViewer:
         if self.positions is not None and np.any(np.abs(self.positions[:, self.selected_agent, :, 1]) > EPS):
             y_pos = float(self.positions[0, self.selected_agent, 0, 1])
         return np.array([-env_size / 2.0, y_pos]), np.array([env_size / 2.0, y_pos])
+
+    def _infer_lane_y(self, agent_id: int) -> float:
+        if self.positions is not None:
+            ys = np.asarray(self.positions[:, agent_id, :, 1], dtype=float).reshape(-1)
+        else:
+            ys = np.asarray(self.observations[:, agent_id, :, 1], dtype=float).reshape(-1)
+        finite = ys[np.isfinite(ys)]
+        nonzero = finite[np.abs(finite) > EPS]
+        if nonzero.size:
+            return float(np.median(nonzero))
+        if finite.size:
+            return float(np.median(finite))
+        return float(self.lever_pos[1])
 
     def _infer_bounds(self) -> Tuple[float, float, float, float]:
         points = [self.lever_pos, self.reward_pos]
@@ -421,6 +445,16 @@ class EvalLogViewer:
         threshold = max(5.0, 0.5 * self.reward_value)
         return reward >= threshold
 
+    def _display_step_return(self, episode: int, agent_id: int, time_step: int) -> float:
+        reward = self.step_penalty
+        if self._reward_event(episode, agent_id, time_step):
+            reward += self.reward_value
+        if self.gaze_actions is not None:
+            gaze_action = int(round(float(self.gaze_actions[episode, agent_id, time_step])))
+            if gaze_action == 1:
+                reward += self.gaze_penalty
+        return reward
+
     @staticmethod
     def _move_labels(num_actions: int) -> List[str]:
         common = {
@@ -447,9 +481,11 @@ class EvalLogViewer:
         return str(action_idx)
 
     def _cumulative_return(self, episode: int, agent_id: int) -> np.ndarray:
-        if self.rewards is None:
-            return np.zeros(self.episode_len, dtype=float)
-        return np.cumsum(np.asarray(self.rewards[episode, agent_id, : self.episode_len], dtype=float))
+        per_step = np.array(
+            [self._display_step_return(episode, agent_id, time_step) for time_step in range(self.episode_len)],
+            dtype=float,
+        )
+        return np.cumsum(per_step)
 
     @staticmethod
     def _plot_ready(series: Sequence[float]) -> np.ndarray:
@@ -520,37 +556,32 @@ class EvalLogViewer:
 
     def _create_rat_artist(self, x: float, y: float) -> Tuple[AnnotationBbox, OffsetImage]:
         if self.rat_rgba is not None:
-            offset = OffsetImage(self.rat_rgba, zoom=0.12)
+            offset = OffsetImage(self.rat_rgba, zoom=0.11)
         else:
             fallback = np.ones((20, 20, 4), dtype=float)
             fallback[..., :3] = 0.45
             fallback[..., 3] = 1.0
-            offset = OffsetImage(fallback, zoom=0.12)
+            offset = OffsetImage(fallback, zoom=0.11)
         artist = AnnotationBbox(offset, (x, y), frameon=False, box_alignment=(0.5, 0.3), zorder=6)
         self.ax_env.add_artist(artist)
         return artist, offset
 
     def _build_figure(self) -> None:
-        self.fig = plt.figure(figsize=(15, 9))
+        self.fig = plt.figure(figsize=(14.5, 8.4), facecolor="white")
         grid = self.fig.add_gridspec(
             2,
             2,
-            width_ratios=[2.15, 1.15],
-            height_ratios=[1.6, 1.0],
-            hspace=0.26,
-            wspace=0.16,
+            width_ratios=[2.25, 1.15],
+            height_ratios=[1.7, 1.0],
+            hspace=0.34,
+            wspace=0.28,
         )
         self.ax_env = self.fig.add_subplot(grid[0, 0])
-        self.ax_info = self.fig.add_subplot(grid[0, 1])
         self.ax_trace = self.fig.add_subplot(grid[1, 0])
-        right_bottom = grid[1, 1].subgridspec(2, 1, hspace=0.55)
-        self.ax_move = self.fig.add_subplot(right_bottom[0, 0])
-        self.ax_gaze = self.fig.add_subplot(right_bottom[1, 0])
-        self.ax_critic = self.ax_trace.twinx()
+        self.ax_info = self.fig.add_subplot(grid[:, 1])
 
         self._draw_static_env()
         self._init_trace()
-        self._init_probability_axes()
 
         self.ax_info.set_axis_off()
         self.info_text = self.ax_info.text(
@@ -559,10 +590,14 @@ class EvalLogViewer:
             "",
             va="top",
             ha="left",
-            family="monospace",
-            fontsize=10,
+            family="serif",
+            fontsize=11,
+            linespacing=1.35,
+            wrap=True,
+            bbox={"facecolor": "white", "edgecolor": "#d0d0d0", "boxstyle": "round,pad=0.55", "alpha": 0.96},
         )
         self.title_text = self.ax_env.set_title("")
+        self.fig.subplots_adjust(top=0.93, bottom=0.09, left=0.07, right=0.97)
 
         self.fig.canvas.mpl_connect("key_press_event", self._on_key)
         self.fig.canvas.mpl_connect("button_press_event", self._on_click)
@@ -572,27 +607,33 @@ class EvalLogViewer:
         self.timer.start()
 
     def _draw_static_env(self) -> None:
-        x_min, x_max, y_min, y_max = self.bounds
+        x_min, x_max = self.bounds[0], self.bounds[1]
+        lane_positions = [self.lane_y[agent_id] for agent_id in self.agent_ids]
+        y_min = min(lane_positions + [self.lever_pos[1], self.reward_pos[1]]) - 0.28
+        y_max = max(lane_positions + [self.lever_pos[1], self.reward_pos[1]]) + 0.28
         self.ax_env.set_xlim(x_min, x_max)
         self.ax_env.set_ylim(y_min, y_max)
         self.ax_env.set_aspect("equal", adjustable="box")
         self.ax_env.set_xlabel("x position")
-        self.ax_env.set_ylabel("y position")
-        self.ax_env.grid(alpha=0.15)
+        self.ax_env.set_yticks([])
+        self.ax_env.grid(False)
 
         arena = patches.Rectangle(
-            (x_min, y_min),
+            (x_min, y_min + 0.04),
             x_max - x_min,
-            y_max - y_min,
-            linewidth=1.5,
-            edgecolor="#555555",
-            facecolor="#f7f7f7",
-            alpha=0.9,
+            (y_max - y_min) - 0.08,
+            linewidth=2.0,
+            edgecolor="#444444",
+            facecolor="#f2f2f2",
+            alpha=0.96,
             zorder=0,
         )
         self.ax_env.add_patch(arena)
 
-        square_size = max(0.14, 0.06 * (x_max - x_min))
+        for lane_y in lane_positions:
+            self.ax_env.axhline(lane_y, color="#b8b8b8", lw=1.2, zorder=1)
+
+        square_size = max(0.12, min(0.22, 0.08 * (x_max - x_min)))
         self.lever_patch = patches.Rectangle(
             (self.lever_pos[0] - square_size / 2, self.lever_pos[1] - square_size / 2),
             square_size,
@@ -613,142 +654,75 @@ class EvalLogViewer:
         )
         self.ax_env.add_patch(self.lever_patch)
         self.ax_env.add_patch(self.reward_patch)
-        self.ax_env.text(self.lever_pos[0], self.lever_pos[1] + square_size * 0.85, "lever", ha="center", va="bottom")
-        self.ax_env.text(self.reward_pos[0], self.reward_pos[1] + square_size * 0.85, "reward", ha="center", va="bottom")
+        label_y = y_max - 0.02
+        self.ax_env.text(self.lever_pos[0], label_y, "lever", ha="center", va="top", fontsize=12)
+        self.ax_env.text(self.reward_pos[0], label_y, "reward", ha="center", va="top", fontsize=12)
 
+        legend = []
         for agent_id in self.agent_ids:
-            path_line, = self.ax_env.plot([], [], "-", color=PATH_COLOR, lw=1.8, alpha=0.9, zorder=2)
+            color = self.agent_colors[agent_id]
+            path_line, = self.ax_env.plot([], [], "-", color=color, lw=2.0, alpha=0.7, zorder=2)
             self.path_lines[agent_id] = path_line
             artist, offset = self._create_rat_artist(0.0, 0.0)
             self.rat_artists[agent_id] = artist
             self.rat_offsets[agent_id] = offset
-            label = self.ax_env.text(0.0, 0.0, f"agent_{agent_id}", fontsize=9, ha="center", va="bottom")
-            self.rat_labels[agent_id] = label
+            legend.append(Line2D([0], [0], color=color, lw=2, label=f"agent_{agent_id}"))
 
-        legend = [
-            Line2D([0], [0], color=PATH_COLOR, lw=2, label="trajectory"),
+        legend.extend(
+            [
             Line2D([0], [0], marker="s", color="w", markerfacecolor=LEVER_ON, markeredgecolor="#304858", ms=9, lw=0, label="lever cue"),
             Line2D([0], [0], marker="s", color="w", markerfacecolor=REWARD_ON, markeredgecolor="#24563a", ms=9, lw=0, label="reward cue"),
-        ]
-        self.ax_env.legend(handles=legend, loc="upper left", fontsize=9)
+            ]
+        )
+        self.ax_env.legend(handles=legend, loc="upper left", frameon=True, facecolor="white")
 
     def _init_trace(self) -> None:
-        self.ax_trace.set_title("Return and Critic Over Time", fontsize=10, pad=10)
+        self.ax_trace.set_title("Return Over Time", fontsize=13, pad=12)
         self.ax_trace.set_xlabel("timestep")
         self.ax_trace.set_ylabel("cumulative return")
-        self.ax_trace.grid(alpha=0.22)
-        self.ax_critic.set_ylabel("critic value")
+        self.ax_trace.grid(alpha=0.22, color="#d8d8d8")
 
-        self.return_line, = self.ax_trace.plot([], [], color=POLICY_COLOR, lw=2.2, label="cumulative return")
-        self.critic_line, = self.ax_critic.plot([], [], color=PRED_COLOR, lw=1.8, ls="--", label="critic")
+        self.return_line, = self.ax_trace.plot([], [], color=POLICY_COLOR, lw=2.4, label="selected agent")
+        self.total_return_line, = self.ax_trace.plot([], [], color=TOTAL_COLOR, lw=1.9, ls="--", label="total")
         self.trace_cursor = self.ax_trace.axvline(0, color="black", ls="--", lw=1.0)
         self.pull_scatter = self.ax_trace.scatter([], [], marker="v", s=42, color="#c0392b", label="pull")
         self.reward_scatter = self.ax_trace.scatter([], [], marker="*", s=64, color="#2e8b57", label="reward")
 
-        handles = [
-            Line2D([0], [0], color=POLICY_COLOR, lw=2.2, label="cumulative return"),
-            Line2D([0], [0], color=PRED_COLOR, lw=1.8, ls="--", label="critic"),
-            Line2D([0], [0], marker="v", color="#c0392b", lw=0, label="pull"),
-            Line2D([0], [0], marker="*", color="#2e8b57", lw=0, label="reward"),
-        ]
-        self.ax_trace.legend(handles=handles, loc="upper left", fontsize=8)
-
-    def _init_probability_axes(self) -> None:
-        x_move = np.arange(self.num_move_actions, dtype=float)
-        width = 0.37
-        self.ax_move.set_title("Movement Distribution", fontsize=10)
-        self.ax_move.set_ylim(0.0, 1.0)
-        self.ax_move.set_ylabel("prob")
-        self.ax_move.set_xticks(x_move)
-        self.ax_move.set_xticklabels(self.move_labels, rotation=20)
-        self.ax_move.grid(axis="y", alpha=0.2)
-        self.move_policy_bars = list(
-            self.ax_move.bar(x_move - width / 2, np.zeros_like(x_move), width=width, color=POLICY_COLOR, alpha=0.85)
+        handles = [Line2D([0], [0], color=POLICY_COLOR, lw=2.4, label="selected agent")]
+        if len(self.agent_ids) > 1:
+            handles.append(Line2D([0], [0], color=TOTAL_COLOR, lw=1.9, ls="--", label="total"))
+        handles.extend(
+            [
+                Line2D([0], [0], marker="v", color="#c0392b", lw=0, label="pull"),
+                Line2D([0], [0], marker="*", color="#2e8b57", lw=0, label="reward"),
+            ]
         )
-        self.move_pred_bars = list(
-            self.ax_move.bar(x_move + width / 2, np.zeros_like(x_move), width=width, color=PRED_COLOR, alpha=0.75)
-        )
-        self.move_note = self.ax_move.text(0.02, 0.97, "", transform=self.ax_move.transAxes, va="top", ha="left", fontsize=8)
-
-        x_gaze = np.arange(2, dtype=float)
-        self.ax_gaze.set_title("Gaze Distribution", fontsize=10)
-        self.ax_gaze.set_ylim(0.0, 1.0)
-        self.ax_gaze.set_ylabel("prob")
-        self.ax_gaze.set_xticks(x_gaze)
-        self.ax_gaze.set_xticklabels(self.gaze_labels)
-        self.ax_gaze.grid(axis="y", alpha=0.2)
-        self.gaze_policy_bars = list(
-            self.ax_gaze.bar(x_gaze - width / 2, np.zeros_like(x_gaze), width=width, color=POLICY_COLOR, alpha=0.85)
-        )
-        self.gaze_pred_bars = list(
-            self.ax_gaze.bar(x_gaze + width / 2, np.zeros_like(x_gaze), width=width, color=PRED_COLOR, alpha=0.75)
-        )
-        self.gaze_note = self.ax_gaze.text(0.02, 0.97, "", transform=self.ax_gaze.transAxes, va="top", ha="left", fontsize=8)
-
-        move_handles = [
-            patches.Patch(color=POLICY_COLOR, label="policy"),
-            patches.Patch(color=PRED_COLOR, label="predictive"),
-        ]
-        self.ax_move.legend(handles=move_handles, loc="upper right", fontsize=8)
-        self.ax_gaze.legend(handles=move_handles, loc="upper right", fontsize=8)
-
-    def _set_bar_heights(self, bars: Sequence[Any], values: np.ndarray) -> None:
-        for idx, bar in enumerate(bars):
-            height = float(values[idx]) if idx < values.size else 0.0
-            bar.set_height(height)
-
-    def _update_probability_axes(self, policy: ProbabilitySummary, pred: ProbabilitySummary) -> None:
-        self._set_bar_heights(self.move_policy_bars, policy.move_probs)
-        self._set_bar_heights(self.move_pred_bars, pred.move_probs if pred.available else np.zeros(0))
-        self._set_bar_heights(self.gaze_policy_bars, policy.gaze_probs)
-        self._set_bar_heights(self.gaze_pred_bars, pred.gaze_probs if pred.available else np.zeros(0))
-
-        move_note = f"policy argmax: {self._move_label(policy.move_argmax)}"
-        if pred.available and pred.move_argmax is not None:
-            move_note += f"\npred argmax : {self._move_label(pred.move_argmax)}"
-        else:
-            move_note += "\npred argmax : n/a"
-        self.move_note.set_text(move_note)
-
-        gaze_note = f"policy argmax: {self._gaze_label(policy.gaze_argmax)}"
-        if pred.available and pred.gaze_probs.size:
-            gaze_note += f"\npred argmax : {self._gaze_label(pred.gaze_argmax)}"
-        else:
-            gaze_note += "\npred argmax : n/a"
-        self.gaze_note.set_text(gaze_note)
+        self.ax_trace.legend(handles=handles, loc="upper left", frameon=True, facecolor="white")
 
     def _update_trace(self) -> None:
         episode = self.episode_idx
         agent_id = self.selected_agent
         xs = np.arange(self.episode_len)
         returns = self._cumulative_return(episode, agent_id)
-        critic = (
-            np.asarray(self.critic[episode, agent_id, : self.episode_len], dtype=float).reshape(self.episode_len, -1)[:, 0]
-            if self.critic is not None
-            else np.zeros(self.episode_len, dtype=float)
-        )
-
         returns_plot = self._plot_ready(returns)
-        critic_plot = self._plot_ready(critic)
+        total_returns = np.zeros(self.episode_len, dtype=float)
+        for current_agent in self.agent_ids:
+            total_returns += self._cumulative_return(episode, current_agent)
+        total_plot = self._plot_ready(total_returns)
 
         self.return_line.set_data(xs, returns_plot)
-        self.critic_line.set_data(xs, critic_plot)
+        self.total_return_line.set_data(xs, total_plot)
+        self.total_return_line.set_visible(len(self.agent_ids) > 1)
         self.trace_cursor.set_xdata([self.t, self.t])
 
-        r_min, r_max = self._finite_min_max(returns, default=(-1.0, 1.0))
+        combined = np.concatenate([returns, total_returns]) if total_returns.size else returns
+        r_min, r_max = self._finite_min_max(combined, default=(-1.0, 1.0))
         if abs(r_max - r_min) < 1e-6:
             r_max += 1.0
             r_min -= 1.0
         r_pad = max(1.0, 0.06 * (r_max - r_min))
         self.ax_trace.set_xlim(0, max(1, self.episode_len - 1))
         self.ax_trace.set_ylim(r_min - r_pad, r_max + r_pad)
-
-        c_min, c_max = self._finite_min_max(critic, default=(-1.0, 1.0))
-        if abs(c_max - c_min) < 1e-6:
-            c_max += 1.0
-            c_min -= 1.0
-        c_pad = max(0.1, 0.1 * (c_max - c_min))
-        self.ax_critic.set_ylim(c_min - c_pad, c_max + c_pad)
 
         pull_offsets = []
         reward_offsets = []
@@ -790,7 +764,6 @@ class EvalLogViewer:
 
             pos = self._position_at(episode, agent_id, self.t)
             self.rat_artists[agent_id].xy = (pos[0], pos[1])
-            self.rat_labels[agent_id].set_position((pos[0], pos[1] + 0.09 * (self.bounds[3] - self.bounds[2])))
 
     def _update_info(self) -> None:
         episode = self.episode_idx
@@ -810,11 +783,16 @@ class EvalLogViewer:
         if self.gaze_actions is not None:
             gaze_action = int(round(float(self.gaze_actions[episode, agent_id, self.t])))
 
-        step_reward = self._reward_at(episode, agent_id, self.t)
+        logged_reward = self._reward_at(episode, agent_id, self.t)
+        display_step_return = self._display_step_return(episode, agent_id, self.t)
         cum_return = self._cumulative_return(episode, agent_id)[self.t]
         critic_value = self._critic_at(episode, agent_id, self.t)
         policy = self._policy_summary(episode, agent_id, self.t)
         pred = self._predictive_summary(episode, agent_id, self.t)
+        move_prob_lines = self._probability_lines("Policy move probs", self.move_labels, policy.move_probs)
+        gaze_prob_lines = self._probability_lines("Policy gaze probs", self.gaze_labels, policy.gaze_probs)
+        pred_move_lines = self._probability_lines("Pred move probs", self.move_labels, pred.move_probs if pred.available else np.zeros(0))
+        pred_gaze_lines = self._probability_lines("Pred gaze probs", self.gaze_labels, pred.gaze_probs if pred.available else np.zeros(0))
 
         self.title_text.set_text(
             f"Episode {episode + 1}/{self.n_episodes} | "
@@ -823,55 +801,66 @@ class EvalLogViewer:
         )
 
         lines = [
-            f"agent_{agent_id}",
-            f"  position         : ({pos[0]: .3f}, {pos[1]: .3f})",
-            f"  velocity         : ({vel[0]: .3f}, {vel[1]: .3f})",
-            f"  lever_rel        : ({lever_rel[0]: .3f}, {lever_rel[1]: .3f})",
-            f"  reward_rel       : ({reward_rel[0]: .3f}, {reward_rel[1]: .3f})",
-            f"  other_rel        : {self._fmt_vec(other_rel)}",
-            f"  reward_cue       : {self._fmt_flag(reward_cue)}",
-            f"  lever_cue        : {self._fmt_flag(lever_cue)}",
-            f"  lever_action_obs : {self._fmt_flag(lever_action_obs)}",
-            f"  reward           : {step_reward: .3f}",
-            f"  cumulative_ret   : {cum_return: .3f}",
-            f"  critic           : {critic_value: .3f}",
-            f"  action(move)     : {self._move_label(move_action)}",
-            f"  action(gaze)     : {self._gaze_label(gaze_action)}",
-            f"  policy argmax    : {self._move_label(policy.move_argmax)} {self._fmt_conf(policy.move_confidence)}",
+            f"Agent {agent_id}",
+            "",
+            f"Position: {self._fmt_vec(pos)}",
+            f"Velocity: {self._fmt_vec(vel)}",
+            f"Lever relative position: {self._fmt_vec(lever_rel)}",
+            f"Reward relative position: {self._fmt_vec(reward_rel)}",
+            f"Other relative position: {self._fmt_vec(other_rel)}",
+            "",
+            "Observed cues",
+            f"Reward cue: {self._fmt_flag(reward_cue)}",
+            f"Lever cue: {self._fmt_flag(lever_cue)}",
+            f"Lever action state: {self._fmt_flag(lever_action_obs)}",
+            "",
+            "Actions",
+            f"Actual movement action: {self._move_label(move_action)}",
+            f"Actual gaze action: {self._gaze_label(gaze_action)}",
+            f"Policy movement argmax: {self._move_label(policy.move_argmax)} {self._fmt_conf(policy.move_confidence)}",
         ]
         if policy.gaze_probs.size:
-            lines.append(f"  policy gaze argm : {self._gaze_label(policy.gaze_argmax)} {self._fmt_conf(policy.gaze_confidence)}")
+            lines.append(f"Policy gaze argmax: {self._gaze_label(policy.gaze_argmax)} {self._fmt_conf(policy.gaze_confidence)}")
         if pred.available and pred.move_argmax is not None:
-            lines.append(f"  pred move argmax : {self._move_label(pred.move_argmax)} {self._fmt_conf(pred.move_confidence)}")
+            lines.append(f"Predicted movement action: {self._move_label(pred.move_argmax)} {self._fmt_conf(pred.move_confidence)}")
         else:
-            lines.append("  pred move argmax : n/a")
+            lines.append("Predicted movement action: n/a")
         if pred.available and pred.gaze_probs.size:
-            lines.append(f"  pred gaze argmax : {self._gaze_label(pred.gaze_argmax)} {self._fmt_conf(pred.gaze_confidence)}")
+            lines.append(f"Predicted gaze action: {self._gaze_label(pred.gaze_argmax)} {self._fmt_conf(pred.gaze_confidence)}")
         else:
-            lines.append("  pred gaze argmax : n/a")
+            lines.append("Predicted gaze action: n/a")
         lines.extend(
             [
-                f"  pred source      : {pred.source if pred.available else 'no predictive embedding logged'}",
                 "",
-                (
-                    f"events @ t={self.t}: "
-                    f"pull={self._pull_event(episode, agent_id, self.t)} "
-                    f"reward={self._reward_event(episode, agent_id, self.t)} "
-                    f"coop={self._coop_event(episode, self.t)}"
-                ),
+                "Returns",
+                f"Logged reward at this step: {self._fmt_scalar(logged_reward)}",
+                f"Displayed return increment: {self._fmt_scalar(display_step_return)}",
+                f"Cumulative return: {self._fmt_scalar(cum_return)}",
+                f"Critic value: {self._fmt_scalar(critic_value)}",
+                "",
+                "Policy and prediction details",
+                *move_prob_lines,
+                *gaze_prob_lines,
+                *pred_move_lines,
+                *pred_gaze_lines,
+                f"Prediction source: {pred.source if pred.available else 'no predictive embedding logged'}",
+                "",
+                "Events",
+                f"Pull this step: {self._pull_event(episode, agent_id, self.t)}",
+                f"Reward this step: {self._reward_event(episode, agent_id, self.t)}",
+                f"Cooperation this step: {self._coop_event(episode, self.t)}",
                 "",
                 "Controls",
-                "  Left/Right : step",
-                "  Up/Down    : episode",
-                "  Space      : play/pause",
-                "  Home/End   : first/last timestep",
-                "  Tab        : cycle visible agent",
-                "  Click plot : jump to timestep",
+                "Left/Right: step",
+                "Up/Down: change episode",
+                "Space: play or pause",
+                "Home/End: first or last timestep",
+                "Tab: cycle visible agent",
+                "Click return plot: jump to timestep",
             ]
         )
 
         self.info_text.set_text("\n".join(lines))
-        self._update_probability_axes(policy, pred)
 
     @staticmethod
     def _fmt_flag(value: Optional[int]) -> str:
@@ -890,6 +879,23 @@ class EvalLogViewer:
         if vec is None or vec.size == 0:
             return "n/a"
         return f"({vec[0]: .3f}, {vec[1]: .3f})"
+
+    @staticmethod
+    def _fmt_scalar(value: float) -> str:
+        if not np.isfinite(value):
+            return "n/a"
+        return f"{value: .3f}"
+
+    @staticmethod
+    def _probability_lines(title: str, labels: Sequence[str], probs: np.ndarray, chunk_size: int = 3) -> List[str]:
+        if probs.size == 0:
+            return [f"{title}: n/a"]
+        entries = [f"{labels[idx]}={probs[idx]:.2f}" for idx in range(min(len(labels), probs.size))]
+        lines = []
+        for start in range(0, len(entries), chunk_size):
+            prefix = f"{title}: " if start == 0 else "    "
+            lines.append(prefix + ", ".join(entries[start : start + chunk_size]))
+        return lines
 
     def _update_frame(self) -> None:
         self.t = max(0, min(self.t, self.episode_len - 1))
@@ -972,6 +978,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--interval-ms", type=int, default=150, help="Playback interval in milliseconds")
     parser.add_argument("--rat-image", type=str, default=str(DEFAULT_RAT_IMAGE), help="Path to the rat sprite image")
     parser.add_argument("--selected-agent", type=int, default=None, help="Agent index to focus on initially")
+    parser.add_argument("--reward-value", type=float, default=None, help="Reward magnitude to use in the return plot")
+    parser.add_argument("--step-penalty", type=float, default=-1.0, help="Per-timestep baseline used for the return plot")
+    parser.add_argument("--gaze-penalty", type=float, default=0.0, help="Per-gaze penalty used for the return plot")
     return parser.parse_args()
 
 
@@ -986,6 +995,9 @@ def main() -> None:
         interval_ms=args.interval_ms,
         rat_image=args.rat_image,
         selected_agent=args.selected_agent,
+        reward_value=args.reward_value,
+        step_penalty=args.step_penalty,
+        gaze_penalty=args.gaze_penalty,
     )
     viewer.run()
 
