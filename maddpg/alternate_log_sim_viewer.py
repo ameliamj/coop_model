@@ -147,6 +147,8 @@ class EvalLogViewer:
         self.ax_env = None
         self.ax_trace = None
         self.ax_info = None
+        self.ax_move = None
+        self.ax_gaze = None
         self.timer = None
 
         self.title_text = None
@@ -156,11 +158,15 @@ class EvalLogViewer:
         self.rat_offsets: Dict[int, OffsetImage] = {}
         self.lever_patch = None
         self.reward_patch = None
-        self.return_line = None
+        self.reward_lines: Dict[int, Any] = {}
         self.total_return_line = None
-        self.trace_cursor = None
-        self.pull_scatter = None
-        self.reward_scatter = None
+        self.reward_cursor = None
+        self.move_policy_bars: List[Any] = []
+        self.move_pred_bars: List[Any] = []
+        self.gaze_policy_bars: List[Any] = []
+        self.gaze_pred_bars: List[Any] = []
+        self.move_note = None
+        self.gaze_note = None
 
     @staticmethod
     def _resolve_log_dir(log_dir: str) -> str:
