@@ -452,6 +452,19 @@ class EvalLogViewer:
         return np.cumsum(np.asarray(self.rewards[episode, agent_id, : self.episode_len], dtype=float))
 
     @staticmethod
+    def _plot_ready(series: Sequence[float]) -> np.ndarray:
+        arr = np.asarray(series, dtype=float).reshape(-1)
+        return np.where(np.isfinite(arr), arr, np.nan)
+
+    @staticmethod
+    def _finite_min_max(series: Sequence[float], default: Tuple[float, float]) -> Tuple[float, float]:
+        arr = np.asarray(series, dtype=float).reshape(-1)
+        finite = arr[np.isfinite(arr)]
+        if finite.size == 0:
+            return default
+        return float(np.min(finite)), float(np.max(finite))
+
+    @staticmethod
     def _transparent_border_background(image: np.ndarray) -> np.ndarray:
         arr = np.asarray(image).copy()
         if arr.ndim != 3 or arr.shape[2] not in (3, 4):
@@ -715,12 +728,14 @@ class EvalLogViewer:
             else np.zeros(self.episode_len, dtype=float)
         )
 
-        self.return_line.set_data(xs, returns)
-        self.critic_line.set_data(xs, critic)
+        returns_plot = self._plot_ready(returns)
+        critic_plot = self._plot_ready(critic)
+
+        self.return_line.set_data(xs, returns_plot)
+        self.critic_line.set_data(xs, critic_plot)
         self.trace_cursor.set_xdata([self.t, self.t])
 
-        r_min = float(np.min(returns)) if returns.size else -1.0
-        r_max = float(np.max(returns)) if returns.size else 1.0
+        r_min, r_max = self._finite_min_max(returns, default=(-1.0, 1.0))
         if abs(r_max - r_min) < 1e-6:
             r_max += 1.0
             r_min -= 1.0
@@ -728,8 +743,7 @@ class EvalLogViewer:
         self.ax_trace.set_xlim(0, max(1, self.episode_len - 1))
         self.ax_trace.set_ylim(r_min - r_pad, r_max + r_pad)
 
-        c_min = float(np.min(critic)) if critic.size else -1.0
-        c_max = float(np.max(critic)) if critic.size else 1.0
+        c_min, c_max = self._finite_min_max(critic, default=(-1.0, 1.0))
         if abs(c_max - c_min) < 1e-6:
             c_max += 1.0
             c_min -= 1.0
@@ -739,9 +753,9 @@ class EvalLogViewer:
         pull_offsets = []
         reward_offsets = []
         for time_step in range(self.episode_len):
-            if self._pull_event(episode, agent_id, time_step):
+            if self._pull_event(episode, agent_id, time_step) and np.isfinite(returns[time_step]):
                 pull_offsets.append([time_step, returns[time_step]])
-            if self._reward_event(episode, agent_id, time_step):
+            if self._reward_event(episode, agent_id, time_step) and np.isfinite(returns[time_step]):
                 reward_offsets.append([time_step, returns[time_step]])
 
         if not pull_offsets:
