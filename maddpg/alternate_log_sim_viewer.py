@@ -10,7 +10,7 @@ import argparse
 import os
 import pickle
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,7 +33,7 @@ PORT_X = 1
 Y_TOP = 0.10
 Y_BOTTOM = -0.10
 EPS = 1e-9
-#DEFAULT_RAT_IMAGE = 
+DEFAULT_RAT_IMAGE = None
 
 AGENT_COLORS = {0: "tab:red", 1: "tab:blue"}
 
@@ -105,7 +105,9 @@ class LogSimulationViewer:
         self.active_agents = self._infer_active_agents()
         self.agent_names = self._infer_agent_names()
         self.cue_layout = self._infer_cue_layout()
-        self.rat_rgba = self._load_rat_image(self.rat_image or (DEFAULT_RAT_IMAGE if os.path.exists(DEFAULT_RAT_IMAGE) else None))
+        self.rat_rgba = self._load_rat_image(
+            self.rat_image or (DEFAULT_RAT_IMAGE if DEFAULT_RAT_IMAGE and os.path.exists(DEFAULT_RAT_IMAGE) else None)
+        )
 
         self.fig = None
         self.ax_env = None
@@ -237,7 +239,7 @@ class LogSimulationViewer:
     def _position_at(self, ep: int, agent_id: int, t: int) -> np.ndarray:
         if self.positions is not None:
             pos = np.asarray(self.positions[ep, agent_id, t], dtype=float).reshape(-1)
-            if pos.size >= 2 and np.any(np.abs(pos[:2]) > EPS):
+            if pos.size >= 2:
                 return pos[:2]
         obs = self._obs_at(ep, agent_id, t)
         if obs.size >= 2:
@@ -362,7 +364,10 @@ class LogSimulationViewer:
             return arr
 
         if arr.shape[2] == 3:
-            alpha = np.ones(arr.shape[:2], dtype=arr.dtype)
+            if np.issubdtype(arr.dtype, np.integer):
+                alpha = np.full(arr.shape[:2], 255, dtype=arr.dtype)
+            else:
+                alpha = np.ones(arr.shape[:2], dtype=arr.dtype)
             arr = np.dstack([arr, alpha])
 
         rgb = arr[..., :3]
@@ -422,31 +427,53 @@ class LogSimulationViewer:
         self.ax_env.add_artist(abox)
         return abox
 
-    def _create_rat_abox(self, x: float, y: float, color: str) -> AnnotationBbox:
-        if self.rat_rgba is not None:
-            box = OffsetImage(self.rat_rgba, zoom=0.085)
-        else:
-            box = self._rat_drawing(color)
-        abox = AnnotationBbox(
-            box,
-            (x, y),
-            frameon=False,
-            box_alignment=(0.5, 0.45),
-            zorder=6,
-        )
-        self.ax_env.add_artist(abox)
-        return abox
+    def _tinted_rat_image(self, color: str) -> np.ndarray:
+        arr = np.asarray(self.rat_rgba).copy()
+        rgb = arr[..., :3].astype(float)
 
-    def _rat_drawing(self, color: str) -> DrawingArea:
-        da = DrawingArea(36, 24, 0, 0)
-        da.add_artist(patches.Ellipse((15, 12), 18, 10, facecolor=color, edgecolor="black", lw=1))
-        da.add_artist(patches.Circle((24, 12), 5.2, facecolor=color, edgecolor="black", lw=1))
-        da.add_artist(patches.Circle((26, 17), 2.5, facecolor=color, edgecolor="black", lw=0.8))
-        da.add_artist(patches.Circle((22, 17), 2.2, facecolor=color, edgecolor="black", lw=0.8))
-        da.add_artist(patches.Circle((25.8, 12.8), 0.9, facecolor="black", edgecolor="none"))
-        da.add_artist(Line2D([6, 1], [12, 16], color="#c88f8f", lw=2))
-        da.add_artist(Line2D([6, 1], [11, 9], color="#c88f8f", lw=2))
-        return da
+        color_rgb = np.array(plt.matplotlib.colors.to_rgb(color), dtype=float)
+
+        if np.issubdtype(arr.dtype, np.integer):
+            maxv = np.iinfo(arr.dtype).max
+            rgb = rgb / maxv
+        else:
+            maxv = 1.0
+
+        brightness = rgb.mean(axis=2, keepdims=True)
+        tinted = 0.35 * rgb + 0.65 * brightness * color_rgb.reshape(1, 1, 3)
+        tinted = np.clip(tinted, 0.0, 1.0)
+
+        if np.issubdtype(arr.dtype, np.integer):
+            arr[..., :3] = (tinted * maxv).astype(arr.dtype)
+        else:
+            arr[..., :3] = tinted.astype(arr.dtype)
+
+        return arr
+
+    def _create_rat_artist(self, x: float, y: float, color: str):
+        if self.rat_rgba is not None:
+            rat_img = self._tinted_rat_image(color)
+            w = 0.16
+            h = 0.10
+            artist = self.ax_env.imshow(
+                rat_img,
+                extent=(x - w / 2, x + w / 2, y - h / 2, y + h / 2),
+                zorder=6,
+                interpolation="nearest",
+            )
+            return artist
+
+        # Fallback simple dot if no rat image exists
+        artist = self.ax_env.scatter([x], [y], s=180, c=[color], edgecolors="black", zorder=6)
+        return artist
+
+    def _move_rat_artist(self, artist, x: float, y: float):
+        if self.rat_rgba is not None:
+            w = 0.16
+            h = 0.10
+            artist.set_extent((x - w / 2, x + w / 2, y - h / 2, y + h / 2))
+        else:
+            artist.set_offsets(np.array([[x, y]]))
 
     def _lever_drawing(self) -> DrawingArea:
         da = DrawingArea(26, 26, 0, 0)
@@ -484,7 +511,7 @@ class LogSimulationViewer:
             y = self._arena_y(aid)
             path, = self.ax_env.plot([], [], "-", color=AGENT_COLORS.get(aid, "tab:blue"), lw=1.8, alpha=0.6)
             self.agent_paths[aid] = path
-            self.rat_artists[aid] = self._create_rat_abox(0.0, y, AGENT_COLORS.get(aid, "tab:blue"))
+            self.rat_artists[aid] = self._create_rat_artist(0.0, y, AGENT_COLORS.get(aid, "tab:blue"))
 
         env_legend = []
         for aid in self.active_agents:
@@ -543,10 +570,12 @@ class LogSimulationViewer:
         self.ax_env.set_xlim(ARENA_X_MIN - 0.03, ARENA_X_MAX + 0.03)
         self.ax_env.set_ylim(-0.20, 0.20)
         self.ax_env.set_aspect("equal", adjustable="box")
-        self.ax_env.set_xlabel("x position", fontsize=9)
-        self.ax_env.set_ylabel("lane")
+
+        # Remove overlapping labels
+        self.ax_env.set_xlabel("")
+        self.ax_env.set_ylabel("")
         self.ax_env.tick_params(axis="x", labelsize=8)
-        self.ax_env.tick_params(axis="y", labelsize=8)
+        self.ax_env.tick_params(axis="y", left=False, labelleft=False)
 
         arena = patches.Rectangle(
             (ARENA_X_MIN, -0.14),
@@ -566,26 +595,7 @@ class LogSimulationViewer:
             self._create_icon_abox(self.lever_image, self._lever_drawing(), LEVER_X, y, zoom=0.24)
             self._create_icon_abox(self.reward_image, self._droplet_drawing(), PORT_X, y, zoom=0.24)
 
-        self.ax_env.text(
-            LEVER_X,
-            1.01,
-            "lever",
-            transform=self.ax_env.get_xaxis_transform(),
-            ha="center",
-            va="bottom",
-            fontsize=8,
-            clip_on=False,
-        )
-        self.ax_env.text(
-            PORT_X,
-            1.01,
-            "reward",
-            transform=self.ax_env.get_xaxis_transform(),
-            ha="center",
-            va="bottom",
-            fontsize=8,
-            clip_on=False,
-        )
+        # Removed the "lever" / "reward" text labels above the arena
 
         self.lever_cue_marker = patches.Circle(
             (LEVER_X, 0.155),
@@ -619,11 +629,10 @@ class LogSimulationViewer:
             s = self._state_from_logs(ep, self.t, aid)
             y = self._arena_y(aid)
 
-            self.rat_artists[aid].xy = (s.x_pos, y)
+            # Actually move the rat sprite
+            self._move_rat_artist(self.rat_artists[aid], s.x_pos, y)
 
-            xs = []
-            for i in range(self.t + 1):
-                xs.append(self._state_from_logs(ep, i, aid).x_pos)
+            xs = [self._state_from_logs(ep, i, aid).x_pos for i in range(self.t + 1)]
             ys = [y] * len(xs)
             self.agent_paths[aid].set_data(xs, ys)
 
