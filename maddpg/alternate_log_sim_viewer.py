@@ -33,7 +33,7 @@ PORT_X = 1
 Y_TOP = 0.10
 Y_BOTTOM = -0.10
 EPS = 1e-9
-DEFAULT_RAT_IMAGE = 
+#DEFAULT_RAT_IMAGE = 
 
 AGENT_COLORS = {0: "tab:red", 1: "tab:blue"}
 
