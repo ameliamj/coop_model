@@ -597,7 +597,7 @@ class LogSimulationViewer:
 
         self.ax_env.text(
             LEVER_X,
-            -0.155,
+            -0.175,
             "lever",
             ha="center",
             va="top",
@@ -606,7 +606,7 @@ class LogSimulationViewer:
         )
         self.ax_env.text(
             PORT_X,
-            -0.155,
+            -0.175,
             "reward",
             ha="center",
             va="top",
@@ -690,9 +690,9 @@ class LogSimulationViewer:
 
         flags = self._event_flags(ep, self.t)
         events_line = (
-            f"events @ t={self.t}: "
-            f"pull0={flags['pull_0']} pull1={flags['pull_1']} "
-            f"reward0={flags['reward_0']} reward1={flags['reward_1']} coop={flags['coop']}"
+            f"events @ t={self.t}:\n"
+            f"  pull0={flags['pull_0']}  pull1={flags['pull_1']}\n"
+            f"  reward0={flags['reward_0']}  reward1={flags['reward_1']}  coop={flags['coop']}"
         )
 
         self.title_text.set_text(
