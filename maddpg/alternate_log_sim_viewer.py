@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""Old-style interactive renderer for this repository's evaluation logs.
-
-This recreates the layout and behavior of the older dict-based viewer as closely
-as possible, while loading the array-based files produced by `main.py --evaluate`
-in this repository.
-"""
-
 import argparse
 import os
 import pickle
@@ -78,6 +71,7 @@ class LogSimulationViewer:
         self.positions = self._load_pickle("all_positions.pkl", required=False)
         self.move_actions = self._load_pickle("all_move_actions.pkl", required=False)
         self.gaze_actions = self._load_pickle("all_gaze_actions.pkl", required=False)
+        self.action_scores = self._load_pickle("all_action_probs.pkl", required=False)
         self.rewards = self._load_pickle("all_rewards.pkl", required=False)
         self.pulls = self._load_pickle("all_pulls.pkl", required=False) or {}
         self.coops = self._load_pickle("all_coops.pkl", required=False) or {}
@@ -86,6 +80,7 @@ class LogSimulationViewer:
         self.positions = self._to_optional_ndarray(self.positions)
         self.move_actions = self._to_optional_ndarray(self.move_actions)
         self.gaze_actions = self._to_optional_ndarray(self.gaze_actions)
+        self.action_scores = self._to_optional_ndarray(self.action_scores)
         self.rewards = self._to_optional_ndarray(self.rewards)
 
         if self.observations.ndim != 4:
@@ -105,6 +100,9 @@ class LogSimulationViewer:
         self.active_agents = self._infer_active_agents()
         self.agent_names = self._infer_agent_names()
         self.cue_layout = self._infer_cue_layout()
+        self.num_move_actions = self._infer_num_move_actions()
+        self.move_labels = self._move_labels(self.num_move_actions)
+        self.gaze_labels = ["no_gaze", "gaze"]
         self.rat_rgba = self._load_rat_image(
             self.rat_image or (DEFAULT_RAT_IMAGE if DEFAULT_RAT_IMAGE and os.path.exists(DEFAULT_RAT_IMAGE) else None)
         )
@@ -113,6 +111,8 @@ class LogSimulationViewer:
         self.ax_env = None
         self.ax_state = None
         self.ax_reward = None
+        self.ax_move_probs = None
+        self.ax_gaze_probs = None
         self.timer = None
 
         self.agent_paths: Dict[int, Any] = {}
@@ -124,6 +124,8 @@ class LogSimulationViewer:
         self.reward_cursor = None
         self.lever_cue_markers: Dict[int, Any] = {}
         self.reward_cue_markers: Dict[int, Any] = {}
+        self.move_prob_bars: Dict[int, Any] = {}
+        self.gaze_prob_bars: Dict[int, Any] = {}
 
     @staticmethod
     def _resolve_log_dir(log_dir: str) -> str:
@@ -220,6 +222,22 @@ class LogSimulationViewer:
             lever_action_idx = -1
         return reward_idx, lever_idx, lever_action_idx
 
+    def _infer_num_move_actions(self) -> int:
+        if self.action_scores is not None and self.action_scores.shape[-1] >= 3:
+            return max(1, self.action_scores.shape[-1] - 2)
+        if "num_actions" in self.args_dict:
+            return int(self.args_dict["num_actions"])
+        return 3
+
+    @staticmethod
+    def _move_labels(num_actions: int) -> List[str]:
+        common = {
+            3: ["stay", "left", "right"],
+            4: ["stay", "left", "right", "press"],
+            5: ["stay", "left", "right", "down", "up"],
+        }
+        return common.get(num_actions, [f"move_{idx}" for idx in range(num_actions)])
+
     def _episode(self) -> int:
         return self.episodes[self.episode_idx]
 
@@ -314,6 +332,43 @@ class LogSimulationViewer:
         if self.gaze_actions is not None:
             gaze_action = self._safe_int(self.gaze_actions[ep, agent_id, t])
         return move_action, gaze_action
+
+    @staticmethod
+    def _scores_to_probs(scores: np.ndarray) -> np.ndarray:
+        arr = np.asarray(scores, dtype=float).reshape(-1)
+        if arr.size == 0:
+            return arr
+        arr = np.where(np.isfinite(arr), arr, -1e9)
+        if np.all(arr >= 0):
+            total = np.sum(arr)
+            if total > EPS and abs(total - 1.0) < 1e-4:
+                return arr
+        arr = arr - np.max(arr)
+        exp = np.exp(arr)
+        total = np.sum(exp)
+        if not np.isfinite(total) or total <= EPS:
+            return np.full(arr.shape, 1.0 / arr.size)
+        return exp / total
+
+    def _policy_probs_at_t(self, ep: int, t: int, agent_id: int) -> Tuple[np.ndarray, np.ndarray]:
+        if self.action_scores is None:
+            return np.zeros(self.num_move_actions), np.zeros(2)
+        raw = np.asarray(self.action_scores[ep, agent_id, t], dtype=float).reshape(-1)
+        if raw.size < self.num_move_actions:
+            return np.zeros(self.num_move_actions), np.zeros(2)
+        move_scores = raw[: self.num_move_actions]
+        gaze_scores = raw[-2:] if raw.size >= self.num_move_actions + 2 else np.zeros(2)
+        return self._scores_to_probs(move_scores), self._scores_to_probs(gaze_scores)
+
+    def _predicted_actions_at_t(self, ep: int, t: int, agent_id: int) -> Tuple[str, str]:
+        move_probs, gaze_probs = self._policy_probs_at_t(ep, t, agent_id)
+        move_pred = "n/a"
+        gaze_pred = "n/a"
+        if move_probs.size:
+            move_pred = self.move_labels[int(np.argmax(move_probs))]
+        if gaze_probs.size:
+            gaze_pred = self.gaze_labels[int(np.argmax(gaze_probs))]
+        return move_pred, gaze_pred
 
     def _reward_event(self, ep: int, t: int, agent_id: int) -> bool:
         if self.rewards is None:
@@ -497,12 +552,15 @@ class LogSimulationViewer:
         return da
 
     def _build_figure(self):
-        self.fig = plt.figure(figsize=(13, 7))
+        self.fig = plt.figure(figsize=(14.2, 8.4))
         gs = self.fig.add_gridspec(
-            2, 2, width_ratios=[2.3, 1.3], height_ratios=[2.0, 1.0], hspace=0.30, wspace=0.16
+            3, 2, width_ratios=[2.25, 1.25], height_ratios=[1.85, 1.05, 0.95], hspace=0.42, wspace=0.18
         )
         self.ax_env = self.fig.add_subplot(gs[0, 0])
         self.ax_reward = self.fig.add_subplot(gs[1, 0])
+        probs_gs = gs[2, 0].subgridspec(1, 2, wspace=0.28)
+        self.ax_move_probs = self.fig.add_subplot(probs_gs[0, 0])
+        self.ax_gaze_probs = self.fig.add_subplot(probs_gs[0, 1])
         self.ax_state = self.fig.add_subplot(gs[:, 1])
 
         self._draw_static_arena()
@@ -543,7 +601,7 @@ class LogSimulationViewer:
             va="top",
             ha="left",
             family="monospace",
-            fontsize=10,
+            fontsize=9,
         )
 
         self.ax_reward.set_title("Return Over Time", fontsize=10, pad=12)
@@ -560,11 +618,61 @@ class LogSimulationViewer:
         self.reward_cursor = self.ax_reward.axvline(0, color="black", ls="--", lw=1)
         self.ax_reward.legend(loc="upper left", fontsize=8)
 
+        self._build_prob_axes()
+
         self.fig.canvas.mpl_connect("key_press_event", self._on_key)
 
         self.timer = self.fig.canvas.new_timer(interval=self.interval_ms)
         self.timer.add_callback(self._tick)
         self.timer.start()
+
+    def _build_prob_axes(self):
+        width = 0.36 if len(self.active_agents) <= 1 else 0.32
+
+        move_x = np.arange(len(self.move_labels))
+        gaze_x = np.arange(len(self.gaze_labels))
+
+        self.ax_move_probs.set_title("Movement Probabilities", fontsize=10, pad=8)
+        self.ax_move_probs.set_ylabel("probability", fontsize=9)
+        self.ax_move_probs.set_ylim(0.0, 1.0)
+        self.ax_move_probs.set_xticks(move_x)
+        self.ax_move_probs.set_xticklabels(self.move_labels, fontsize=8)
+        self.ax_move_probs.grid(axis="y", alpha=0.22)
+
+        self.ax_gaze_probs.set_title("Gaze Probabilities", fontsize=10, pad=8)
+        self.ax_gaze_probs.set_ylabel("probability", fontsize=9)
+        self.ax_gaze_probs.set_ylim(0.0, 1.0)
+        self.ax_gaze_probs.set_xticks(gaze_x)
+        self.ax_gaze_probs.set_xticklabels(self.gaze_labels, fontsize=8)
+        self.ax_gaze_probs.grid(axis="y", alpha=0.22)
+
+        offsets = (
+            [0.0]
+            if len(self.active_agents) == 1
+            else np.linspace(-width / 2, width / 2, len(self.active_agents))
+        )
+        for idx, aid in enumerate(self.active_agents):
+            color = AGENT_COLORS.get(aid, "tab:blue")
+            move_positions = move_x + offsets[idx]
+            gaze_positions = gaze_x + offsets[idx]
+            self.move_prob_bars[aid] = self.ax_move_probs.bar(
+                move_positions,
+                np.zeros(len(self.move_labels)),
+                width=width,
+                color=color,
+                alpha=0.85,
+                label=self.agent_names[aid],
+            )
+            self.gaze_prob_bars[aid] = self.ax_gaze_probs.bar(
+                gaze_positions,
+                np.zeros(len(self.gaze_labels)),
+                width=width,
+                color=color,
+                alpha=0.85,
+                label=self.agent_names[aid],
+            )
+        self.ax_move_probs.legend(fontsize=8, frameon=False)
+        self.ax_gaze_probs.legend(fontsize=8, frameon=False)
 
     def _draw_static_arena(self):
         self.ax_env.set_xlim(ARENA_X_MIN - 0.03, ARENA_X_MAX + 0.03)
@@ -658,6 +766,7 @@ class LogSimulationViewer:
             self.agent_paths[aid].set_data(xs, ys)
 
             move_action, gaze_action = self._actions_at_t(ep, self.t, aid)
+            pred_move_action, pred_gaze_action = self._predicted_actions_at_t(ep, self.t, aid)
 
             state_blocks.append(
                 "\n".join(
@@ -674,6 +783,8 @@ class LogSimulationViewer:
                         f"  time_since_pull  : {s.time_since_pull}",
                         f"  action(move)     : {move_action}",
                         f"  action(gaze)     : {gaze_action}",
+                        f"  predicted(move)  : {pred_move_action}",
+                        f"  predicted(gaze)  : {pred_gaze_action}",
                     ]
                 )
             )
@@ -709,6 +820,8 @@ class LogSimulationViewer:
 
         self.state_text.set_text("\n\n".join(state_blocks + [events_line, notes]))
 
+        self._update_prob_axes(ep)
+
         xs = list(range(ep_len))
         ymax = 1.0
         ymin = 0.0
@@ -733,6 +846,14 @@ class LogSimulationViewer:
         self.reward_cursor.set_xdata([self.t, self.t])
 
         self.fig.canvas.draw_idle()
+
+    def _update_prob_axes(self, ep: int):
+        for aid in self.active_agents:
+            move_probs, gaze_probs = self._policy_probs_at_t(ep, self.t, aid)
+            for idx, bar in enumerate(self.move_prob_bars[aid]):
+                bar.set_height(float(move_probs[idx]) if idx < len(move_probs) else 0.0)
+            for idx, bar in enumerate(self.gaze_prob_bars[aid]):
+                bar.set_height(float(gaze_probs[idx]) if idx < len(gaze_probs) else 0.0)
 
     def _tick(self):
         if not self.playing:
