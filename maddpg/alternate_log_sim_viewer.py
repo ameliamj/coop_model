@@ -97,7 +97,10 @@ Command-line options
 - `--export-episode N`: export only one episode, using 1-based episode number
 - `--export-dir`: output folder for exported frames/videos
 - `--export-fps`: fps used for mp4 creation
+- `--export-dpi`: resolution used for exported frames/video
 - `--frames-only`: save PNG frames but skip mp4 creation
+- `--stream-video`: write mp4 directly without saving PNG frames first
+- `--cleanup-frames`: delete saved PNG frames after mp4 creation
 
 Requirements and notes
 ----------------------
@@ -126,6 +129,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import patches
+from matplotlib.animation import FFMpegWriter
 from matplotlib.lines import Line2D
 from matplotlib.offsetbox import AnnotationBbox, DrawingArea, OffsetImage
 
@@ -1062,6 +1066,9 @@ class LogSimulationViewer:
         episode: Optional[int] = None,
         fps: int = 8,
         make_video: bool = True,
+        dpi: int = 160,
+        stream_video: bool = False,
+        cleanup_frames: bool = False,
     ) -> None:
         self._build_figure()
         if self.timer is not None:
@@ -1069,9 +1076,15 @@ class LogSimulationViewer:
 
         episodes = [episode] if episode is not None else self.episodes
         output_dir = os.path.abspath(os.path.expanduser(output_dir))
+        model_label = self._model_label()
+
+        if make_video and stream_video:
+            self._render_videos_direct(output_dir, episodes, fps, dpi)
+            plt.close(self.fig)
+            return
+
         frames_root = os.path.join(output_dir, "frames")
         os.makedirs(frames_root, exist_ok=True)
-        model_label = self._model_label()
 
         for ep in episodes:
             ep_dir = os.path.join(frames_root, f"{model_label}_{self._episode_label(ep)}")
@@ -1084,12 +1097,70 @@ class LogSimulationViewer:
                 self.playing = False
                 self._update_frame()
                 frame_path = os.path.join(ep_dir, f"frame_{t + 1:04d}.png")
-                self.fig.savefig(frame_path, dpi=160)
+                self.fig.savefig(frame_path, dpi=dpi)
 
         if make_video:
             self._render_videos_from_frames(frames_root, output_dir, episodes, fps)
+            if cleanup_frames:
+                shutil.rmtree(frames_root, ignore_errors=True)
 
         plt.close(self.fig)
+
+    def _render_videos_direct(
+        self,
+        output_dir: str,
+        episodes: List[int],
+        fps: int,
+        dpi: int,
+    ) -> None:
+        ffmpeg = shutil.which("ffmpeg")
+        if ffmpeg is None:
+            raise RuntimeError(
+                "Direct mp4 export requires `ffmpeg` on PATH. If it is unavailable, use --frames-only or install ffmpeg."
+            )
+
+        videos_dir = os.path.join(output_dir, "videos")
+        os.makedirs(videos_dir, exist_ok=True)
+        model_label = self._model_label()
+
+        concat_manifest = os.path.join(videos_dir, "concat_manifest.txt")
+        manifest_lines = []
+
+        metadata = {"title": model_label, "artist": "classic_log_sim_viewer"}
+        for ep in episodes:
+            ep_name = f"{model_label}_{self._episode_label(ep)}"
+            ep_video = os.path.join(videos_dir, f"{ep_name}.mp4")
+            writer = FFMpegWriter(fps=fps, metadata=metadata)
+
+            self.episode_idx = ep
+            ep_len = self._episode_len(ep)
+            with writer.saving(self.fig, ep_video, dpi=dpi):
+                for t in range(ep_len):
+                    self.t = t
+                    self.playing = False
+                    self._update_frame()
+                    writer.grab_frame()
+
+            manifest_lines.append(f"file '{ep_video}'\n")
+
+        if len(episodes) > 1:
+            with open(concat_manifest, "w", encoding="utf-8") as handle:
+                handle.writelines(manifest_lines)
+            combined_video = os.path.join(videos_dir, f"{model_label}_all_episodes.mp4")
+            cmd = [
+                ffmpeg,
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                concat_manifest,
+                "-c",
+                "copy",
+                combined_video,
+            ]
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def _render_videos_from_frames(
         self,
@@ -1193,7 +1264,18 @@ def parse_args():
         help="Output directory used by --export-all or --export-episode",
     )
     parser.add_argument("--export-fps", type=int, default=8, help="Frames per second for exported mp4 videos")
+    parser.add_argument("--export-dpi", type=int, default=160, help="Resolution for exported frames and videos")
     parser.add_argument("--frames-only", action="store_true", help="Save PNG frames but skip mp4 creation")
+    parser.add_argument(
+        "--stream-video",
+        action="store_true",
+        help="Create mp4 directly with ffmpeg instead of saving PNG frames first",
+    )
+    parser.add_argument(
+        "--cleanup-frames",
+        action="store_true",
+        help="Delete exported PNG frames after mp4 creation completes",
+    )
     return parser.parse_args()
 
 
@@ -1226,6 +1308,9 @@ def main():
             episode=None,
             fps=args.export_fps,
             make_video=not args.frames_only,
+            dpi=args.export_dpi,
+            stream_video=args.stream_video,
+            cleanup_frames=args.cleanup_frames,
         )
         return
 
@@ -1240,6 +1325,9 @@ def main():
             episode=episode_idx,
             fps=args.export_fps,
             make_video=not args.frames_only,
+            dpi=args.export_dpi,
+            stream_video=args.stream_video,
+            cleanup_frames=args.cleanup_frames,
         )
         return
 
