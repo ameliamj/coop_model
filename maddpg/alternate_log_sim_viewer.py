@@ -26,13 +26,14 @@ except Exception:
     filedialog = None
 
 
-ARENA_X_MIN = -1.1
-ARENA_X_MAX = 1.1
+ARENA_X_MIN = -1.2
+ARENA_X_MAX = 1.2
 LEVER_X = -1
 PORT_X = 1
 Y_TOP = 0.10
 Y_BOTTOM = -0.10
 EPS = 1e-9
+DEFAULT_RAT_IMAGE = os.path.join(os.path.dirname(__file__), "rat_img.png!sw800")
 
 AGENT_COLORS = {0: "tab:red", 1: "tab:blue"}
 
@@ -104,6 +105,7 @@ class LogSimulationViewer:
         self.active_agents = self._infer_active_agents()
         self.agent_names = self._infer_agent_names()
         self.cue_layout = self._infer_cue_layout()
+        self.rat_rgba = self._load_rat_image(self.rat_image or (DEFAULT_RAT_IMAGE if os.path.exists(DEFAULT_RAT_IMAGE) else None))
 
         self.fig = None
         self.ax_env = None
@@ -118,6 +120,8 @@ class LogSimulationViewer:
         self.reward_lines: Dict[int, Any] = {}
         self.total_reward_line = None
         self.reward_cursor = None
+        self.lever_cue_marker = None
+        self.reward_cue_marker = None
 
     @staticmethod
     def _resolve_log_dir(log_dir: str) -> str:
@@ -351,6 +355,56 @@ class LogSimulationViewer:
             out.append(running)
         return out
 
+    @staticmethod
+    def _transparent_border_background(image: np.ndarray) -> np.ndarray:
+        arr = np.asarray(image).copy()
+        if arr.ndim != 3 or arr.shape[2] not in (3, 4):
+            return arr
+
+        if arr.shape[2] == 3:
+            alpha = np.ones(arr.shape[:2], dtype=arr.dtype)
+            arr = np.dstack([arr, alpha])
+
+        rgb = arr[..., :3]
+        if np.issubdtype(arr.dtype, np.integer):
+            threshold = 4
+            alpha_zero = 0
+        else:
+            threshold = 0.02
+            alpha_zero = 0.0
+
+        dark = np.all(rgb <= threshold, axis=2)
+        visited = np.zeros(dark.shape, dtype=bool)
+        stack = []
+        height, width = dark.shape
+
+        def enqueue(y: int, x: int) -> None:
+            if 0 <= y < height and 0 <= x < width and dark[y, x] and not visited[y, x]:
+                visited[y, x] = True
+                stack.append((y, x))
+
+        for x in range(width):
+            enqueue(0, x)
+            enqueue(height - 1, x)
+        for y in range(height):
+            enqueue(y, 0)
+            enqueue(y, width - 1)
+
+        while stack:
+            y, x = stack.pop()
+            enqueue(y - 1, x)
+            enqueue(y + 1, x)
+            enqueue(y, x - 1)
+            enqueue(y, x + 1)
+
+        arr[..., 3][visited] = alpha_zero
+        return arr
+
+    def _load_rat_image(self, image_path: Optional[str]) -> Optional[np.ndarray]:
+        if not image_path or not os.path.exists(image_path):
+            return None
+        return self._transparent_border_background(plt.imread(image_path))
+
     def _create_icon_abox(
         self,
         image_path: Optional[str],
@@ -365,6 +419,21 @@ class LogSimulationViewer:
         else:
             box = drawing_area
         abox = AnnotationBbox(box, (x, y), frameon=False, box_alignment=(0.5, 0.5), zorder=6)
+        self.ax_env.add_artist(abox)
+        return abox
+
+    def _create_rat_abox(self, x: float, y: float, color: str) -> AnnotationBbox:
+        if self.rat_rgba is not None:
+            box = OffsetImage(self.rat_rgba, zoom=0.085)
+        else:
+            box = self._rat_drawing(color)
+        abox = AnnotationBbox(
+            box,
+            (x, y),
+            frameon=False,
+            box_alignment=(0.5, 0.45),
+            zorder=6,
+        )
         self.ax_env.add_artist(abox)
         return abox
 
@@ -415,9 +484,7 @@ class LogSimulationViewer:
             y = self._arena_y(aid)
             path, = self.ax_env.plot([], [], "-", color=AGENT_COLORS.get(aid, "tab:blue"), lw=1.8, alpha=0.6)
             self.agent_paths[aid] = path
-            self.rat_artists[aid] = self._create_icon_abox(
-                self.rat_image, self._rat_drawing(AGENT_COLORS.get(aid, "tab:blue")), 0.0, y, zoom=0.12
-            )
+            self.rat_artists[aid] = self._create_rat_abox(0.0, y, AGENT_COLORS.get(aid, "tab:blue"))
 
         env_legend = []
         for aid in self.active_agents:
@@ -430,7 +497,15 @@ class LogSimulationViewer:
                 Line2D([0], [0], marker="o", color="w", markerfacecolor="#4aa3df", markeredgecolor="black", ms=7, lw=0, label="reward"),
             ]
         )
-        self.ax_env.legend(handles=env_legend, loc="upper left")
+        self.ax_env.legend(
+            handles=env_legend,
+            loc="lower left",
+            bbox_to_anchor=(0.0, 1.02),
+            ncol=max(2, len(env_legend)),
+            fontsize=8,
+            frameon=False,
+            borderaxespad=0.0,
+        )
         self.title_text = self.ax_env.set_title("")
 
         self.ax_state.set_axis_off()
@@ -468,8 +543,10 @@ class LogSimulationViewer:
         self.ax_env.set_xlim(ARENA_X_MIN - 0.03, ARENA_X_MAX + 0.03)
         self.ax_env.set_ylim(-0.20, 0.20)
         self.ax_env.set_aspect("equal", adjustable="box")
-        self.ax_env.set_xlabel("x position")
+        self.ax_env.set_xlabel("x position", fontsize=9)
         self.ax_env.set_ylabel("lane")
+        self.ax_env.tick_params(axis="x", labelsize=8)
+        self.ax_env.tick_params(axis="y", labelsize=8)
 
         arena = patches.Rectangle(
             (ARENA_X_MIN, -0.14),
@@ -489,8 +566,45 @@ class LogSimulationViewer:
             self._create_icon_abox(self.lever_image, self._lever_drawing(), LEVER_X, y, zoom=0.24)
             self._create_icon_abox(self.reward_image, self._droplet_drawing(), PORT_X, y, zoom=0.24)
 
-        self.ax_env.text(LEVER_X, 0.155, "lever", ha="center", va="bottom", fontsize=9)
-        self.ax_env.text(PORT_X, 0.155, "reward", ha="center", va="bottom", fontsize=9)
+        self.ax_env.text(
+            LEVER_X,
+            1.01,
+            "lever",
+            transform=self.ax_env.get_xaxis_transform(),
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            clip_on=False,
+        )
+        self.ax_env.text(
+            PORT_X,
+            1.01,
+            "reward",
+            transform=self.ax_env.get_xaxis_transform(),
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            clip_on=False,
+        )
+
+        self.lever_cue_marker = patches.Circle(
+            (LEVER_X, 0.155),
+            radius=0.03,
+            facecolor="white",
+            edgecolor="#946200",
+            linewidth=1.5,
+            zorder=7,
+        )
+        self.reward_cue_marker = patches.Circle(
+            (PORT_X, 0.155),
+            radius=0.03,
+            facecolor="white",
+            edgecolor="#2c6b3b",
+            linewidth=1.5,
+            zorder=7,
+        )
+        self.ax_env.add_patch(self.lever_cue_marker)
+        self.ax_env.add_patch(self.reward_cue_marker)
 
     def _update_frame(self):
         ep = self._episode()
@@ -533,6 +647,15 @@ class LogSimulationViewer:
                     ]
                 )
             )
+
+        cue_agent = self.active_agents[0]
+        cue_state = self._state_from_logs(ep, self.t, cue_agent)
+        lever_on = cue_state.lever_cue == 1
+        reward_on = cue_state.reward_cue == 1
+        self.lever_cue_marker.set_facecolor("#f2c94c" if lever_on else "white")
+        self.reward_cue_marker.set_facecolor("#4caf50" if reward_on else "white")
+        self.lever_cue_marker.set_alpha(1.0 if lever_on else 0.45)
+        self.reward_cue_marker.set_alpha(1.0 if reward_on else 0.45)
 
         flags = self._event_flags(ep, self.t)
         events_line = (
