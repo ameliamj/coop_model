@@ -249,6 +249,12 @@ class LogSimulationViewer:
     def _episode_label(ep: int) -> str:
         return f"ep_{ep + 1:04d}"
 
+    def _model_label(self) -> str:
+        base = os.path.basename(self.log_dir.rstrip(os.sep))
+        if base == "eval":
+            base = os.path.basename(os.path.dirname(self.log_dir.rstrip(os.sep)))
+        return base or "model"
+
     @staticmethod
     def _resolve_log_dir(log_dir: str) -> str:
         path = os.path.abspath(os.path.expanduser(log_dir))
@@ -698,7 +704,7 @@ class LogSimulationViewer:
     def _build_figure(self):
         self.fig = plt.figure(figsize=(14.4, 8.8))
         gs = self.fig.add_gridspec(
-            3, 2, width_ratios=[2.2, 1.18], height_ratios=[1.95, 0.98, 0.92], hspace=0.32, wspace=0.18
+            3, 2, width_ratios=[2.2, 1.18], height_ratios=[1.95, 0.98, 0.92], hspace=0.28, wspace=0.18
         )
         self.ax_env = self.fig.add_subplot(gs[0, 0])
         self.ax_reward = self.fig.add_subplot(gs[1, 0])
@@ -1065,9 +1071,10 @@ class LogSimulationViewer:
         output_dir = os.path.abspath(os.path.expanduser(output_dir))
         frames_root = os.path.join(output_dir, "frames")
         os.makedirs(frames_root, exist_ok=True)
+        model_label = self._model_label()
 
         for ep in episodes:
-            ep_dir = os.path.join(frames_root, self._episode_label(ep))
+            ep_dir = os.path.join(frames_root, f"{model_label}_{self._episode_label(ep)}")
             os.makedirs(ep_dir, exist_ok=True)
 
             self.episode_idx = ep
@@ -1099,12 +1106,13 @@ class LogSimulationViewer:
 
         videos_dir = os.path.join(output_dir, "videos")
         os.makedirs(videos_dir, exist_ok=True)
+        model_label = self._model_label()
 
         concat_manifest = os.path.join(videos_dir, "concat_manifest.txt")
         manifest_lines = []
 
         for ep in episodes:
-            ep_name = self._episode_label(ep)
+            ep_name = f"{model_label}_{self._episode_label(ep)}"
             ep_frames = os.path.join(frames_root, ep_name, "frame_%04d.png")
             ep_video = os.path.join(videos_dir, f"{ep_name}.mp4")
             cmd = [
@@ -1124,7 +1132,7 @@ class LogSimulationViewer:
         if len(episodes) > 1:
             with open(concat_manifest, "w", encoding="utf-8") as handle:
                 handle.writelines(manifest_lines)
-            combined_video = os.path.join(videos_dir, "all_episodes.mp4")
+            combined_video = os.path.join(videos_dir, f"{model_label}_all_episodes.mp4")
             cmd = [
                 ffmpeg,
                 "-y",
