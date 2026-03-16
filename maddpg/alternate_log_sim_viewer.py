@@ -26,10 +26,10 @@ except Exception:
     filedialog = None
 
 
-ARENA_X_MIN = -0.4
-ARENA_X_MAX = 0.4
-LEVER_X = -0.25
-PORT_X = 0.25
+ARENA_X_MIN = -1.1
+ARENA_X_MAX = 1.1
+LEVER_X = -1
+PORT_X = 1
 Y_TOP = 0.10
 Y_BOTTOM = -0.10
 EPS = 1e-9
