@@ -706,11 +706,11 @@ class LogSimulationViewer:
 
     def _draw_static_arena(self):
         self.ax_env.set_xlim(ARENA_X_MIN - 0.03, ARENA_X_MAX + 0.03)
-        self.ax_env.set_ylim(-0.3, 0.20)
+        self.ax_env.set_ylim(-0.26, 0.20)
         self.ax_env.set_aspect("equal", adjustable="box")
 
         # Remove overlapping labels
-        self.ax_env.set_xlabel("x position", fontsize=10, labelpad=18)
+        self.ax_env.set_xlabel("x position", fontsize=10, labelpad=10)
         self.ax_env.set_ylabel("")
         self.ax_env.tick_params(axis="x", labelsize=9)
         self.ax_env.tick_params(axis="y", left=False, labelleft=False)
