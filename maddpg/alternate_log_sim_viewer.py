@@ -1,4 +1,120 @@
 #!/usr/bin/env python3
+"""
+What? – Renderer for model evaluation logs.
+
+What this script does
+---------------------
+- Loads evaluation logs from an `eval/` directory, or from a model directory
+  that contains an `eval/` subdirectory.
+- Displays an interactive figure with:
+  - an x-position arena view showing each agent, the lever, and the reward port
+  - cue indicators for lever cue and reward cue
+  - cumulative return over time
+  - normalized movement-action probabilities
+  - normalized gaze-action probabilities
+  - a right-side text panel with the current observation-derived state,
+    sampled action, and predicted action at the current timestep
+- Lets you step through timesteps and episodes with the keyboard.
+- Can export every timestep of one episode or all episodes as PNG frames.
+- Can also assemble those frames into `.mp4` videos when `ffmpeg` is installed.
+
+Files this script expects
+-------------------------
+Required:
+- `all_observations.pkl`
+
+Optional but recommended:
+- `all_positions.pkl`
+- `all_move_actions.pkl`
+- `all_gaze_actions.pkl`
+- `all_action_probs.pkl`
+- `all_rewards.pkl`
+- `all_pulls.pkl`
+- `all_coops.pkl`
+- `args.npy`
+
+How log discovery works
+-----------------------
+- If `--log-dir` directly contains `all_observations.pkl`, that directory is
+  used.
+- Otherwise, if `--log-dir/eval/all_observations.pkl` exists, the script uses
+  that `eval/` directory automatically.
+
+Interactive controls
+--------------------
+- `Right arrow`: next timestep
+- `Left arrow`: previous timestep
+- `Up arrow`: next episode
+- `Down arrow`: previous episode
+- `Space`: play/pause
+- `Home`: first timestep
+- `End`: last timestep
+
+How actions are shown
+---------------------
+- `action(move)` and `action(gaze)` come from the sampled discrete actions in
+  `all_move_actions.pkl` and `all_gaze_actions.pkl`.
+- `predicted(move)` and `predicted(gaze)` are computed from
+  `all_action_probs.pkl` by normalizing the raw action vector and taking the
+  most probable action for movement and gaze separately.
+
+How to run it
+-------------
+Interactive viewer:
+    python3 maddpg/classic_log_sim_viewer.py --log-dir /path/to/model_or_eval_dir
+
+Export frames and videos for all episodes:
+    python3 maddpg/classic_log_sim_viewer.py \
+        --log-dir /path/to/model_or_eval_dir \
+        --export-all \
+        --export-dir viewer_export \
+        --export-fps 8
+
+Export frames and video for one episode only:
+    python3 maddpg/classic_log_sim_viewer.py \
+        --log-dir /path/to/model_or_eval_dir \
+        --export-episode 7 \
+        --export-dir viewer_export_ep7 \
+        --export-fps 8
+
+Export PNG frames only, with no video creation:
+    python3 maddpg/classic_log_sim_viewer.py \
+        --log-dir /path/to/model_or_eval_dir \
+        --export-all \
+        --frames-only
+
+Command-line options
+--------------------
+- `--log-dir`: model directory or eval directory containing the log files
+- `--interval-ms`: playback interval for interactive mode
+- `--reward-value`: reward amount used when reconstructing return over time
+- `--step-penalty`: per-timestep baseline for return reconstruction
+- `--gaze-penalty`: extra penalty added when gaze action is active
+- `--rat-image`: optional custom rat image
+- `--lever-image`: optional custom lever image
+- `--reward-image`: optional custom reward image
+- `--export-all`: export every timestep for every episode
+- `--export-episode N`: export only one episode, using 1-based episode number
+- `--export-dir`: output folder for exported frames/videos
+- `--export-fps`: fps used for mp4 creation
+- `--frames-only`: save PNG frames but skip mp4 creation
+
+Requirements and notes
+----------------------
+- Video creation requires `ffmpeg` to be available on your system `PATH`.
+- If `ffmpeg` is missing, use `--frames-only` to still save every frame.
+- Exported frames are written to:
+  - `<export-dir>/frames/ep_0001/`
+  - `<export-dir>/frames/ep_0002/`
+  - etc.
+- Exported videos are written to:
+  - `<export-dir>/videos/ep_0001.mp4`
+  - etc.
+- When exporting all episodes, the script also creates:
+  - `<export-dir>/videos/all_episodes.mp4`
+"""
+
+
 import argparse
 import os
 import pickle
