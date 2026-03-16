@@ -526,9 +526,9 @@ class LogSimulationViewer:
         )
         self.ax_env.legend(
             handles=env_legend,
-            loc="lower left",
-            bbox_to_anchor=(0.0, 1.02),
-            ncol=max(2, len(env_legend)),
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.24),
+            ncol=len(env_legend),
             fontsize=8,
             frameon=False,
             borderaxespad=0.0,
@@ -568,11 +568,11 @@ class LogSimulationViewer:
 
     def _draw_static_arena(self):
         self.ax_env.set_xlim(ARENA_X_MIN - 0.03, ARENA_X_MAX + 0.03)
-        self.ax_env.set_ylim(-0.24, 0.20)
+        self.ax_env.set_ylim(-0.3, 0.20)
         self.ax_env.set_aspect("equal", adjustable="box")
 
         # Remove overlapping labels
-        self.ax_env.set_xlabel("")
+        self.ax_env.set_xlabel("x_pos", fontsize=9, labelpad=28)
         self.ax_env.set_ylabel("")
         self.ax_env.tick_params(axis="x", labelsize=8)
         self.ax_env.tick_params(axis="y", left=False, labelleft=False)
@@ -595,11 +595,9 @@ class LogSimulationViewer:
             self._create_icon_abox(self.lever_image, self._lever_drawing(), LEVER_X, y, zoom=0.24)
             self._create_icon_abox(self.reward_image, self._droplet_drawing(), PORT_X, y, zoom=0.24)
 
-        # Removed the "lever" / "reward" text labels above the arena
-
         self.ax_env.text(
             LEVER_X,
-            -0.18,
+            -0.155,
             "lever",
             ha="center",
             va="top",
@@ -608,7 +606,7 @@ class LogSimulationViewer:
         )
         self.ax_env.text(
             PORT_X,
-            -0.18,
+            -0.155,
             "reward",
             ha="center",
             va="top",
