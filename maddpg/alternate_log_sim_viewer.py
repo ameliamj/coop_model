@@ -122,6 +122,8 @@ class LogSimulationViewer:
         self.reward_cursor = None
         self.lever_cue_marker = None
         self.reward_cue_marker = None
+        self.rat_half_width = 0.11
+        self.rat_half_height = 0.045
 
     @staticmethod
     def _resolve_log_dir(log_dir: str) -> str:
@@ -422,13 +424,21 @@ class LogSimulationViewer:
         self.ax_env.add_artist(abox)
         return abox
 
-    def _create_rat_abox(self, x: float, y: float, color: str) -> AnnotationBbox:
+    def _create_rat_artist(self, x: float, y: float, color: str) -> Any:
         if self.rat_rgba is not None:
-            box = OffsetImage(self.rat_rgba, zoom=0.085)
-        else:
-            box = self._rat_drawing(color)
+            return self.ax_env.imshow(
+                self.rat_rgba,
+                extent=(
+                    x - self.rat_half_width,
+                    x + self.rat_half_width,
+                    y - self.rat_half_height,
+                    y + self.rat_half_height,
+                ),
+                zorder=6,
+                aspect="auto",
+            )
         abox = AnnotationBbox(
-            box,
+            self._rat_drawing(color),
             (x, y),
             frameon=False,
             box_alignment=(0.5, 0.45),
@@ -436,6 +446,19 @@ class LogSimulationViewer:
         )
         self.ax_env.add_artist(abox)
         return abox
+
+    def _update_rat_artist(self, artist: Any, x: float, y: float) -> None:
+        if hasattr(artist, "set_extent"):
+            artist.set_extent(
+                (
+                    x - self.rat_half_width,
+                    x + self.rat_half_width,
+                    y - self.rat_half_height,
+                    y + self.rat_half_height,
+                )
+            )
+        else:
+            artist.xy = (x, y)
 
     def _rat_drawing(self, color: str) -> DrawingArea:
         da = DrawingArea(36, 24, 0, 0)
@@ -471,6 +494,7 @@ class LogSimulationViewer:
 
     def _build_figure(self):
         self.fig = plt.figure(figsize=(13, 7))
+        self.fig.subplots_adjust(top=0.91, bottom=0.16)
         gs = self.fig.add_gridspec(
             2, 2, width_ratios=[2.3, 1.3], height_ratios=[2.0, 1.0], hspace=0.30, wspace=0.16
         )
@@ -484,7 +508,7 @@ class LogSimulationViewer:
             y = self._arena_y(aid)
             path, = self.ax_env.plot([], [], "-", color=AGENT_COLORS.get(aid, "tab:blue"), lw=1.8, alpha=0.6)
             self.agent_paths[aid] = path
-            self.rat_artists[aid] = self._create_rat_abox(0.0, y, AGENT_COLORS.get(aid, "tab:blue"))
+            self.rat_artists[aid] = self._create_rat_artist(0.0, y, AGENT_COLORS.get(aid, "tab:blue"))
 
         env_legend = []
         for aid in self.active_agents:
@@ -499,14 +523,13 @@ class LogSimulationViewer:
         )
         self.ax_env.legend(
             handles=env_legend,
-            loc="lower left",
-            bbox_to_anchor=(0.0, 1.02),
-            ncol=max(2, len(env_legend)),
-            fontsize=8,
+            loc="upper left",
+            ncol=max(1, min(2, len(env_legend))),
+            fontsize=7,
             frameon=False,
-            borderaxespad=0.0,
+            borderaxespad=0.3,
         )
-        self.title_text = self.ax_env.set_title("")
+        self.title_text = self.fig.suptitle("", y=0.98, fontsize=12)
 
         self.ax_state.set_axis_off()
         self.state_text = self.ax_state.text(
@@ -568,27 +591,27 @@ class LogSimulationViewer:
 
         self.ax_env.text(
             LEVER_X,
-            1.01,
+            -0.12,
             "lever",
             transform=self.ax_env.get_xaxis_transform(),
             ha="center",
-            va="bottom",
+            va="top",
             fontsize=8,
             clip_on=False,
         )
         self.ax_env.text(
             PORT_X,
-            1.01,
+            -0.12,
             "reward",
             transform=self.ax_env.get_xaxis_transform(),
             ha="center",
-            va="bottom",
+            va="top",
             fontsize=8,
             clip_on=False,
         )
 
         self.lever_cue_marker = patches.Circle(
-            (LEVER_X, 0.155),
+            (LEVER_X, -0.165),
             radius=0.03,
             facecolor="white",
             edgecolor="#946200",
@@ -596,7 +619,7 @@ class LogSimulationViewer:
             zorder=7,
         )
         self.reward_cue_marker = patches.Circle(
-            (PORT_X, 0.155),
+            (PORT_X, -0.165),
             radius=0.03,
             facecolor="white",
             edgecolor="#2c6b3b",
@@ -619,7 +642,7 @@ class LogSimulationViewer:
             s = self._state_from_logs(ep, self.t, aid)
             y = self._arena_y(aid)
 
-            self.rat_artists[aid].xy = (s.x_pos, y)
+            self._update_rat_artist(self.rat_artists[aid], s.x_pos, y)
 
             xs = []
             for i in range(self.t + 1):
