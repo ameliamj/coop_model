@@ -122,8 +122,8 @@ class LogSimulationViewer:
         self.reward_lines: Dict[int, Any] = {}
         self.total_reward_line = None
         self.reward_cursor = None
-        self.lever_cue_marker = None
-        self.reward_cue_marker = None
+        self.lever_cue_markers: Dict[int, Any] = {}
+        self.reward_cue_markers: Dict[int, Any] = {}
 
     @staticmethod
     def _resolve_log_dir(log_dir: str) -> str:
@@ -568,7 +568,7 @@ class LogSimulationViewer:
 
     def _draw_static_arena(self):
         self.ax_env.set_xlim(ARENA_X_MIN - 0.03, ARENA_X_MAX + 0.03)
-        self.ax_env.set_ylim(-0.20, 0.20)
+        self.ax_env.set_ylim(-0.24, 0.20)
         self.ax_env.set_aspect("equal", adjustable="box")
 
         # Remove overlapping labels
@@ -597,24 +597,47 @@ class LogSimulationViewer:
 
         # Removed the "lever" / "reward" text labels above the arena
 
-        self.lever_cue_marker = patches.Circle(
-            (LEVER_X, 0.155),
-            radius=0.03,
-            facecolor="white",
-            edgecolor="#946200",
-            linewidth=1.5,
-            zorder=7,
+        self.ax_env.text(
+            LEVER_X,
+            -0.18,
+            "lever",
+            ha="center",
+            va="top",
+            fontsize=8,
+            clip_on=False,
         )
-        self.reward_cue_marker = patches.Circle(
-            (PORT_X, 0.155),
-            radius=0.03,
-            facecolor="white",
-            edgecolor="#2c6b3b",
-            linewidth=1.5,
-            zorder=7,
+        self.ax_env.text(
+            PORT_X,
+            -0.18,
+            "reward",
+            ha="center",
+            va="top",
+            fontsize=8,
+            clip_on=False,
         )
-        self.ax_env.add_patch(self.lever_cue_marker)
-        self.ax_env.add_patch(self.reward_cue_marker)
+
+        for aid in self.active_agents:
+            y = self._arena_y(aid)
+
+            self.lever_cue_markers[aid] = patches.Circle(
+                (LEVER_X, y + 0.055),
+                radius=0.022,
+                facecolor="white",
+                edgecolor="#946200",
+                linewidth=1.5,
+                zorder=7,
+            )
+            self.reward_cue_markers[aid] = patches.Circle(
+                (PORT_X, y + 0.055),
+                radius=0.022,
+                facecolor="white",
+                edgecolor="#2c6b3b",
+                linewidth=1.5,
+                zorder=7,
+            )
+
+            self.ax_env.add_patch(self.lever_cue_markers[aid])
+            self.ax_env.add_patch(self.reward_cue_markers[aid])
 
     def _update_frame(self):
         ep = self._episode()
@@ -657,14 +680,15 @@ class LogSimulationViewer:
                 )
             )
 
-        cue_agent = self.active_agents[0]
-        cue_state = self._state_from_logs(ep, self.t, cue_agent)
-        lever_on = cue_state.lever_cue == 1
-        reward_on = cue_state.reward_cue == 1
-        self.lever_cue_marker.set_facecolor("#f2c94c" if lever_on else "white")
-        self.reward_cue_marker.set_facecolor("#4caf50" if reward_on else "white")
-        self.lever_cue_marker.set_alpha(1.0 if lever_on else 0.45)
-        self.reward_cue_marker.set_alpha(1.0 if reward_on else 0.45)
+        for aid in self.active_agents:
+            cue_state = self._state_from_logs(ep, self.t, aid)
+            lever_on = cue_state.lever_cue == 1
+            reward_on = cue_state.reward_cue == 1
+
+            self.lever_cue_markers[aid].set_facecolor("#f2c94c" if lever_on else "white")
+            self.reward_cue_markers[aid].set_facecolor("#4caf50" if reward_on else "white")
+            self.lever_cue_markers[aid].set_alpha(1.0 if lever_on else 0.45)
+            self.reward_cue_markers[aid].set_alpha(1.0 if reward_on else 0.45)
 
         flags = self._event_flags(ep, self.t)
         events_line = (
