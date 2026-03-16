@@ -2,6 +2,8 @@
 import argparse
 import os
 import pickle
+import shutil
+import subprocess
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -128,6 +130,10 @@ class LogSimulationViewer:
         self.gaze_prob_bars: Dict[int, Any] = {}
 
     @staticmethod
+    def _episode_label(ep: int) -> str:
+        return f"ep_{ep + 1:04d}"
+
+    @staticmethod
     def _resolve_log_dir(log_dir: str) -> str:
         path = os.path.abspath(os.path.expanduser(log_dir))
         if os.path.exists(os.path.join(path, "all_observations.pkl")):
@@ -237,6 +243,28 @@ class LogSimulationViewer:
             5: ["stay", "left", "right", "down", "up"],
         }
         return common.get(num_actions, [f"move_{idx}" for idx in range(num_actions)])
+
+    def _move_action_name(self, action: Any) -> str:
+        if action == "n/a":
+            return "n/a"
+        try:
+            idx = int(action)
+        except Exception:
+            return str(action)
+        if 0 <= idx < len(self.move_labels):
+            return self.move_labels[idx]
+        return f"move_{idx}"
+
+    def _gaze_action_name(self, action: Any) -> str:
+        if action == "n/a":
+            return "n/a"
+        try:
+            idx = int(action)
+        except Exception:
+            return str(action)
+        if 0 <= idx < len(self.gaze_labels):
+            return self.gaze_labels[idx]
+        return f"gaze_{idx}"
 
     def _episode(self) -> int:
         return self.episodes[self.episode_idx]
@@ -552,9 +580,9 @@ class LogSimulationViewer:
         return da
 
     def _build_figure(self):
-        self.fig = plt.figure(figsize=(14.2, 8.4))
+        self.fig = plt.figure(figsize=(14.4, 8.8))
         gs = self.fig.add_gridspec(
-            3, 2, width_ratios=[2.25, 1.25], height_ratios=[1.85, 1.05, 0.95], hspace=0.42, wspace=0.18
+            3, 2, width_ratios=[2.2, 1.18], height_ratios=[1.95, 0.98, 0.92], hspace=0.32, wspace=0.18
         )
         self.ax_env = self.fig.add_subplot(gs[0, 0])
         self.ax_reward = self.fig.add_subplot(gs[1, 0])
@@ -562,6 +590,7 @@ class LogSimulationViewer:
         self.ax_move_probs = self.fig.add_subplot(probs_gs[0, 0])
         self.ax_gaze_probs = self.fig.add_subplot(probs_gs[0, 1])
         self.ax_state = self.fig.add_subplot(gs[:, 1])
+        self.fig.subplots_adjust(top=0.90, bottom=0.08, left=0.07, right=0.98)
 
         self._draw_static_arena()
 
@@ -584,14 +613,14 @@ class LogSimulationViewer:
         )
         self.ax_env.legend(
             handles=env_legend,
-            loc="upper center",
-            bbox_to_anchor=(0.5, -0.24),
-            ncol=len(env_legend),
+            loc="lower center",
+            bbox_to_anchor=(0.5, 1.05),
+            ncol=min(2, len(env_legend)),
             fontsize=8,
             frameon=False,
             borderaxespad=0.0,
         )
-        self.title_text = self.ax_env.set_title("")
+        self.title_text = self.fig.suptitle("", y=0.965, fontsize=12)
 
         self.ax_state.set_axis_off()
         self.state_text = self.ax_state.text(
@@ -601,7 +630,7 @@ class LogSimulationViewer:
             va="top",
             ha="left",
             family="monospace",
-            fontsize=9,
+            fontsize=8.5,
         )
 
         self.ax_reward.set_title("Return Over Time", fontsize=10, pad=12)
@@ -638,13 +667,14 @@ class LogSimulationViewer:
         self.ax_move_probs.set_xticks(move_x)
         self.ax_move_probs.set_xticklabels(self.move_labels, fontsize=8)
         self.ax_move_probs.grid(axis="y", alpha=0.22)
+        self.ax_move_probs.tick_params(axis="y", labelsize=8)
 
         self.ax_gaze_probs.set_title("Gaze Probabilities", fontsize=10, pad=8)
-        self.ax_gaze_probs.set_ylabel("probability", fontsize=9)
         self.ax_gaze_probs.set_ylim(0.0, 1.0)
         self.ax_gaze_probs.set_xticks(gaze_x)
         self.ax_gaze_probs.set_xticklabels(self.gaze_labels, fontsize=8)
         self.ax_gaze_probs.grid(axis="y", alpha=0.22)
+        self.ax_gaze_probs.tick_params(axis="y", labelsize=8)
 
         offsets = (
             [0.0]
@@ -671,8 +701,8 @@ class LogSimulationViewer:
                 alpha=0.85,
                 label=self.agent_names[aid],
             )
-        self.ax_move_probs.legend(fontsize=8, frameon=False)
-        self.ax_gaze_probs.legend(fontsize=8, frameon=False)
+        self.ax_move_probs.legend(fontsize=8, frameon=False, loc="upper right")
+        self.ax_gaze_probs.legend(fontsize=8, frameon=False, loc="upper right")
 
     def _draw_static_arena(self):
         self.ax_env.set_xlim(ARENA_X_MIN - 0.03, ARENA_X_MAX + 0.03)
@@ -680,9 +710,9 @@ class LogSimulationViewer:
         self.ax_env.set_aspect("equal", adjustable="box")
 
         # Remove overlapping labels
-        self.ax_env.set_xlabel("x_pos", fontsize=9, labelpad=28)
+        self.ax_env.set_xlabel("x position", fontsize=10, labelpad=18)
         self.ax_env.set_ylabel("")
-        self.ax_env.tick_params(axis="x", labelsize=8)
+        self.ax_env.tick_params(axis="x", labelsize=9)
         self.ax_env.tick_params(axis="y", left=False, labelleft=False)
 
         arena = patches.Rectangle(
@@ -766,6 +796,8 @@ class LogSimulationViewer:
             self.agent_paths[aid].set_data(xs, ys)
 
             move_action, gaze_action = self._actions_at_t(ep, self.t, aid)
+            move_action_name = self._move_action_name(move_action)
+            gaze_action_name = self._gaze_action_name(gaze_action)
             pred_move_action, pred_gaze_action = self._predicted_actions_at_t(ep, self.t, aid)
 
             state_blocks.append(
@@ -781,8 +813,8 @@ class LogSimulationViewer:
                         f"  lever_cue        : {s.lever_cue}",
                         f"  lever_action_obs : {s.lever_action_state}",
                         f"  time_since_pull  : {s.time_since_pull}",
-                        f"  action(move)     : {move_action}",
-                        f"  action(gaze)     : {gaze_action}",
+                        f"  action(move)     : {move_action_name}",
+                        f"  action(gaze)     : {gaze_action_name}",
                         f"  predicted(move)  : {pred_move_action}",
                         f"  predicted(gaze)  : {pred_gaze_action}",
                     ]
@@ -902,6 +934,96 @@ class LogSimulationViewer:
         self._update_frame()
         plt.show()
 
+    def export_frames_and_video(
+        self,
+        output_dir: str,
+        episode: Optional[int] = None,
+        fps: int = 8,
+        make_video: bool = True,
+    ) -> None:
+        self._build_figure()
+        if self.timer is not None:
+            self.timer.stop()
+
+        episodes = [episode] if episode is not None else self.episodes
+        output_dir = os.path.abspath(os.path.expanduser(output_dir))
+        frames_root = os.path.join(output_dir, "frames")
+        os.makedirs(frames_root, exist_ok=True)
+
+        for ep in episodes:
+            ep_dir = os.path.join(frames_root, self._episode_label(ep))
+            os.makedirs(ep_dir, exist_ok=True)
+
+            self.episode_idx = ep
+            ep_len = self._episode_len(ep)
+            for t in range(ep_len):
+                self.t = t
+                self.playing = False
+                self._update_frame()
+                frame_path = os.path.join(ep_dir, f"frame_{t + 1:04d}.png")
+                self.fig.savefig(frame_path, dpi=160)
+
+        if make_video:
+            self._render_videos_from_frames(frames_root, output_dir, episodes, fps)
+
+        plt.close(self.fig)
+
+    def _render_videos_from_frames(
+        self,
+        frames_root: str,
+        output_dir: str,
+        episodes: List[int],
+        fps: int,
+    ) -> None:
+        ffmpeg = shutil.which("ffmpeg")
+        if ffmpeg is None:
+            raise RuntimeError(
+                "Saved all frames, but could not create video because `ffmpeg` was not found on PATH."
+            )
+
+        videos_dir = os.path.join(output_dir, "videos")
+        os.makedirs(videos_dir, exist_ok=True)
+
+        concat_manifest = os.path.join(videos_dir, "concat_manifest.txt")
+        manifest_lines = []
+
+        for ep in episodes:
+            ep_name = self._episode_label(ep)
+            ep_frames = os.path.join(frames_root, ep_name, "frame_%04d.png")
+            ep_video = os.path.join(videos_dir, f"{ep_name}.mp4")
+            cmd = [
+                ffmpeg,
+                "-y",
+                "-framerate",
+                str(fps),
+                "-i",
+                ep_frames,
+                "-pix_fmt",
+                "yuv420p",
+                ep_video,
+            ]
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            manifest_lines.append(f"file '{ep_video}'\n")
+
+        if len(episodes) > 1:
+            with open(concat_manifest, "w", encoding="utf-8") as handle:
+                handle.writelines(manifest_lines)
+            combined_video = os.path.join(videos_dir, "all_episodes.mp4")
+            cmd = [
+                ffmpeg,
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                concat_manifest,
+                "-c",
+                "copy",
+                combined_video,
+            ]
+            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
 
 def _choose_directory_dialog() -> Optional[str]:
     if tk is None or filedialog is None:
@@ -933,6 +1055,21 @@ def parse_args():
     parser.add_argument("--rat-image", type=str, default=None, help="Optional image path for moving rat sprite")
     parser.add_argument("--lever-image", type=str, default=None, help="Optional image path for lever sprite")
     parser.add_argument("--reward-image", type=str, default=None, help="Optional image path for reward sprite")
+    parser.add_argument("--export-all", action="store_true", help="Save every timestep frame for every episode")
+    parser.add_argument(
+        "--export-episode",
+        type=int,
+        default=None,
+        help="Save every timestep frame for one 1-based episode index only",
+    )
+    parser.add_argument(
+        "--export-dir",
+        type=str,
+        default="viewer_export",
+        help="Output directory used by --export-all or --export-episode",
+    )
+    parser.add_argument("--export-fps", type=int, default=8, help="Frames per second for exported mp4 videos")
+    parser.add_argument("--frames-only", action="store_true", help="Save PNG frames but skip mp4 creation")
     return parser.parse_args()
 
 
@@ -955,6 +1092,33 @@ def main():
         lever_image=args.lever_image,
         reward_image=args.reward_image,
     )
+
+    if args.export_all and args.export_episode is not None:
+        raise SystemExit("Use only one of --export-all or --export-episode.")
+
+    if args.export_all:
+        viewer.export_frames_and_video(
+            output_dir=args.export_dir,
+            episode=None,
+            fps=args.export_fps,
+            make_video=not args.frames_only,
+        )
+        return
+
+    if args.export_episode is not None:
+        episode_idx = args.export_episode - 1
+        if not (0 <= episode_idx < len(viewer.episodes)):
+            raise SystemExit(
+                f"--export-episode must be between 1 and {len(viewer.episodes)}"
+            )
+        viewer.export_frames_and_video(
+            output_dir=args.export_dir,
+            episode=episode_idx,
+            fps=args.export_fps,
+            make_video=not args.frames_only,
+        )
+        return
+
     viewer.run()
 
 
